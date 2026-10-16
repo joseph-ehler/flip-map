@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#111111">
+  <title>Flip Map</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="status">
+    <span id="gps">GPS: starting…</span>
+    <span id="speed"></span>
+  </header>
+
+  <section id="nav" hidden>
+    <div id="nav-icon"></div>
+    <div id="nav-body">
+      <div id="nav-dist"></div>
+      <div id="nav-text"></div>
+      <div id="nav-trip"></div>
+    </div>
+  </section>
+
+  <main id="map">
+    <div id="tiles"></div>
+    <canvas id="route"></canvas>
+    <div id="accuracy" hidden></div>
+    <div id="me" hidden><div id="arrow"></div><div id="dot"></div></div>
+    <div id="crosshair" hidden></div>
+    <div id="zoom"></div>
+    <div id="toast" hidden></div>
+    <div id="attribution">© OpenStreetMap</div>
+  </main>
+
+  <section id="search" class="screen" hidden>
+    <input id="q" type="text" placeholder="Where to?" autocomplete="off">
+    <p id="search-msg"></p>
+    <ul id="results" class="list"></ul>
+  </section>
+
+  <section id="menu" class="screen" hidden>
+    <ul id="menu-items" class="list"></ul>
+  </section>
+
+  <footer id="softkeys">
+    <span id="sk-left"></span>
+    <span id="sk-center"></span>
+    <span id="sk-right"></span>
+  </footer>
+
+  <script src="js/geo.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+/* Laid out for the Flip 4's 240x320 CSS-pixel screen; scales to any size. */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  color: #fff;
+  font: 14px/1.2 "Open Sans", system-ui, sans-serif;
+}
+
+body { display: flex; flex-direction: column; }
+
+#status, #softkeys {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #111;
+  padding: 0 6px;
+}
+
+#status { height: 22px; font-size: 13px; }
+#gps.ok { color: #7ee787; }
+#gps.warn { color: #f2cc60; }
+#gps.bad { color: #ff7b72; }
+#speed { font-weight: 700; }
+
+/* --- Turn banner --- */
+
+#nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  background: #0d47a1;
+  padding: 4px 6px;
+}
+
+#nav-icon {
+  flex: 0 0 36px;
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+}
+
+#nav-body { flex: 1 1 auto; min-width: 0; padding-left: 4px; }
+#nav-dist { font-size: 20px; font-weight: 700; }
+#nav-text {
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#nav-trip { font-size: 11px; color: #bbd3ff; margin-top: 1px; }
+
+/* --- Map --- */
+
+#map {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+  background: #ddd;
+}
+
+#tiles, #tiles img, #route { position: absolute; }
+#tiles, #route { left: 0; top: 0; }
+#tiles img { width: 256px; height: 256px; user-select: none; }
+
+#accuracy {
+  position: absolute;
+  border: 1px solid rgba(26, 115, 232, 0.6);
+  background: rgba(26, 115, 232, 0.15);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#me {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+#dot {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1a73e8;
+  border: 3px solid #fff;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Heading wedge, rotated with the direction of travel. Hidden when stationary. */
+#arrow {
+  position: absolute;
+  left: -9px;
+  top: -24px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 16px solid #1a73e8;
+  transform-origin: 9px 24px;
+  display: none;
+}
+#me.moving #arrow { display: block; }
+
+/* Shown while panning away from your position, so you can see the map center. */
+#crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #333;
+  border-radius: 50%;
+}
+
+#zoom, #attribution {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+  color: #333;
+  font-size: 10px;
+  padding: 1px 3px;
+}
+#zoom { left: 0; top: 0; }
+#attribution { right: 0; bottom: 0; }
+
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  max-width: 90%;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* --- Full-screen panels (search, options) --- */
+
+.screen {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 22px;
+  bottom: 28px;
+  z-index: 10;
+  overflow-y: auto;
+  background: #111;
+  padding: 6px;
+}
+
+#q {
+  width: 100%;
+  font-size: 16px;
+  padding: 6px;
+  border: 2px solid #1a73e8;
+  border-radius: 4px;
+  background: #fff;
+  color: #000;
+}
+
+#search-msg { margin: 8px 2px; color: #aaa; font-size: 12px; }
+
+.list { list-style: none; margin: 4px 0 0; padding: 0; }
+.list li { padding: 7px 6px; border-bottom: 1px solid #333; }
+.list li:focus { background: #1a73e8; outline: none; }
+.list .name { font-weight: 700; }
+.list .sub {
+  font-size: 11px;
+  color: #bbb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list li:focus .sub { color: #e8f0fe; }
+
+/* --- Soft key labels --- */
+
+#softkeys { height: 28px; font-size: 13px; font-weight: 600; }
+#sk-left, #sk-right { flex: 1; }
+#sk-right { text-align: right; }
+#sk-center { flex: 1; text-align: center; text-transform: uppercase; }
+#sk-center.on { color: #7ee787; }

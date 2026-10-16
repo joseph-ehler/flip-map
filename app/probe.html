@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Phone Check</title>
+  <style>
+    body { margin: 0; padding: 6px; background: #111; color: #fff; font: 13px/1.3 "Open Sans", system-ui, sans-serif; }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    .hint { color: #aaa; font-size: 11px; margin: 0 0 6px; }
+    #summary { background: #0d47a1; padding: 4px 6px; font-family: monospace; font-size: 11px; word-break: break-all; }
+    dl { margin: 6px 0 0; }
+    dt { color: #aaa; font-size: 11px; margin-top: 6px; }
+    dd { margin: 0; word-break: break-word; }
+    .yes { color: #7ee787; }
+    .no { color: #ff7b72; }
+  </style>
+</head>
+<body>
+  <h1>Phone check</h1>
+  <p class="hint">1 GPS · 2 Voice · 3 Vibrate · 4 Sound on/off · ↑↓ scroll</p>
+  <div id="summary">…</div>
+  <dl id="results"></dl>
+  <script src="js/probe.js"></script>
+</body>
+</html>

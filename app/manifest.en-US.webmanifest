@@ -1,0 +1,27 @@
+{
+  "lang": "en-US",
+  "id": "flipmap",
+  "name": "Flip Map",
+  "short_name": "Flip Map",
+  "description": "Turn-by-turn GPS navigation for the keypad.",
+  "categories": ["navigation"],
+  "icons": [
+    { "src": "icons/map_56.png", "type": "image/png", "sizes": "56x56" },
+    { "src": "icons/map_112.png", "type": "image/png", "sizes": "112x112" }
+  ],
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "orientation": "natural",
+  "b2g_features": {
+    "version": "0.2.0",
+    "core": true,
+    "origin": "flipmap",
+    "subtitle": "Where am I?",
+    "developer": { "name": "Joseph Ehler" },
+    "permissions": {
+      "geolocation": { "description": "Show your position on the map" }
+    }
+  }
+}
