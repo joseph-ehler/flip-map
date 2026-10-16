@@ -3,14 +3,19 @@
 Turn-by-turn navigation for the TCL Flip 4 5G (KaiOS 4.0). It's plain HTML, CSS, and JS in [app/](app/), with no libraries and nothing to build.
 
 **What it does:**
-- Live GPS position with a heading arrow, speed, and accuracy circle.
-- Place search: type with T9, and recent destinations are one key away.
-- Driving route drawn on the map.
-- A turn banner that advances on its own: next turn, distance, arrival time.
-- Spoken turns: an early warning, then "turn now". The phone vibrates if it can't speak.
-- Automatic rerouting when you leave the route.
+- A full-screen map that glides between GPS updates and turns to face the road while you drive.
+- Light and dark appearance, switching automatically at dusk.
+- Place search: type with T9, and recent destinations are one key away. Results show icons by kind of place.
+- Route preview before you start: time, distance, and arrival. ◀ ▶ switch between alternative routes, and Go starts.
+- A turn card with a drawn arrow, the distance, and the street. A "Then" hint appears when two turns come close together.
+- A trip bar showing arrival time, time left, and miles left.
+- Overview of the whole remaining route.
+- Spoken turns: an early warning, then "turn now" with a buzz.
+- Automatic rerouting, speed-based zoom, and a speed readout.
 - Routes resume if the app closes. Reopen it within 6 hours and the route picks back up.
 - Works without a connection once loaded, and remembers map tiles you've already seen.
+
+The design system (principles, every screen's keys, colors, type, motion) is in [DESIGN.md](DESIGN.md).
 
 Plus [probe.html](app/probe.html), a one-screen phone check to run on the device Monday.
 
@@ -22,15 +27,16 @@ Every push to `main` republishes `app/` there, via [pages.yml](.github/workflows
 
 ## Keys
 
-| Key | Map screen |
-|---|---|
-| Left soft key or 7 | Search |
-| Right soft key or 9 | Options (zoom, voice on/off, end route, phone check) |
-| Enter or 5 | Snap back to your position. If already following on a route, repeat the next turn out loud |
-| D-pad or 2 / 4 / 6 / 8 | Pan |
-| 1 / 3 | Zoom out / in |
+| Key | Map | While driving |
+|---|---|---|
+| Left soft key or 7 | Search | Overview of the route |
+| OK or 5 | Locate me (or reset north) | Repeat the next turn out loud, or Resume after panning |
+| Right soft key or 9 | More: voice, appearance, map rotation, phone check | Same, plus End Route |
+| D-pad or 2 / 4 / 6 / 8 | Pan | Pan (snaps back after 12 s) |
+| 1 / 3 | Zoom out / in | Zoom out / in |
+| Back | Exit | Press twice to exit, so a bump doesn't end your trip |
 
-On the search screen, type, then press OK to search. Use Down and OK to pick a result. Back deletes a letter, or closes the screen when the box is empty.
+In search, type and press OK. Use Down and OK to pick a place. That opens the route preview, where ◀ ▶ switch routes, OK is Go, and Back returns to the results. Back always goes up one level.
 
 The digit keys duplicate the soft keys and D-pad because the regular KaiOS browser may keep those keys for itself. The phone check tells us whether it does.
 

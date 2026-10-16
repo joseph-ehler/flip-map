@@ -1,7 +1,7 @@
 'use strict';
 
 // Lets the app open with no data connection and keeps the map tiles you've already seen.
-var SHELL = 'flipmap-shell-v1';
+var SHELL = 'flipmap-shell-v2';
 var TILES = 'flipmap-tiles-v1';
 var MAX_TILES = 2000; // roughly 30-40 MB
 var TRIM_EVERY = 50;
@@ -12,11 +12,13 @@ var SHELL_FILES = [
   'style.css',
   'manifest.webmanifest',
   'js/geo.js',
+  'js/icons.js',
   'js/map.js',
   'js/nav.js',
   'js/search.js',
   'js/sim.js',
   'js/app.js',
+  'fonts/inter-latin.woff2',
   'icons/map_56.png',
   'icons/map_112.png'
 ];

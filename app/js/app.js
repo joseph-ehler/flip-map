@@ -1,4 +1,9 @@
-// Wires everything together: GPS, the status bar, the turn banner, soft keys, menus, keypad.
+// Screens and keys. The app is always in one base state, sometimes with a sheet on top of it:
+//   explore   the map and you             preview   routes to a chosen place, before Go
+//   nav       driving, turn by turn       overview  the whole remaining route
+//   arrived   the moment you get there    sheets    search, settings
+// Each state decides what the soft keys say, what every key does, and which cards are on screen.
+// Back always goes up one level.
 (function (FM) {
   'use strict';
 
@@ -7,173 +12,661 @@
   var nav = FM.nav;
   var search = FM.search;
   var sim = FM.sim;
+  var icons = FM.icons;
 
-  var PAN_STEP = 48; // pixels per key press
-  var STALE_MS = 15000; // no fix for this long = signal lost
+  var PAN_STEP = 56; // pixels per key press
+  var STALE_MS = 15000; // no fix for this long = weak signal
+  var RESUME_MS = 12000; // a panned map snaps back to you after this long while driving
+  var ARRIVED_MS = 15000;
+  var EXIT_MS = 2500;
+  var FLASH_MS = 2400;
+  var SCALE_MS = 1600;
+  var SHEET_OUT_MS = 200;
   var MPS_TO_MPH = 2.23694;
+  var PREFS_KEY = 'flipmap.prefs';
+  var APPEARANCES = ['auto', 'light', 'dark'];
+  var APPEARANCE_NAMES = { auto: 'Automatic', light: 'Light', dark: 'Dark' };
 
-  var gpsEl = document.getElementById('gps');
-  var speedEl = document.getElementById('speed');
-  var navEl = document.getElementById('nav');
-  var navIcon = document.getElementById('nav-icon');
-  var navDist = document.getElementById('nav-dist');
-  var navText = document.getElementById('nav-text');
-  var navTrip = document.getElementById('nav-trip');
-  var toastEl = document.getElementById('toast');
-  var menuEl = document.getElementById('menu');
-  var menuList = document.getElementById('menu-items');
-  var skLeft = document.getElementById('sk-left');
-  var skCenter = document.getElementById('sk-center');
-  var skRight = document.getElementById('sk-right');
+  function $(id) {
+    return document.getElementById(id);
+  }
 
+  var root = document.documentElement;
+  var body = document.body;
+
+  var prefs = loadPrefs();
+  var state = 'explore';
+  var sheet = null;
   var fix = null;
-  var toastTimer = null;
-  var menuActions = [];
+  var gpsError = 0;
+  var trip = emptyTrip(); // the preview: destination and route choices
+  var shownRoute = null;
+  var flash = null; // a short message in the status pill
+  var exitArmedAt = 0;
+  var settingsRows = [];
+  var timers = {};
 
-  // --- Screen pieces ---
-
-  function setStatus(text, level) {
-    gpsEl.textContent = text;
-    gpsEl.className = level;
+  function emptyTrip() {
+    return { dest: null, plans: [], choice: 0, busy: false, error: '' };
   }
 
-  function toast(text) {
-    clearTimeout(toastTimer);
-    toastEl.hidden = !text;
-    if (!text) return;
-    toastEl.textContent = text;
-    toastTimer = setTimeout(function () { toastEl.hidden = true; }, 4000);
+  // --- Small DOM helpers: only touch the page when something changed ---
+
+  function setText(id, s) {
+    var el = $(id);
+    if (el.textContent !== s) el.textContent = s;
   }
 
-  function renderNav() {
-    var s = nav.state();
-    var wasHidden = navEl.hidden;
-    navEl.hidden = s.mode === 'off';
-    if (s.mode === 'pending') {
-      navIcon.textContent = '…';
-      navDist.textContent = 'Finding route';
-      navText.textContent = s.dest.name;
-      navTrip.textContent = fix ? '' : 'Waiting for GPS';
-    } else if (s.mode === 'on') {
-      navIcon.textContent = s.step.icon;
-      navDist.textContent = geo.formatDistance(s.toNext);
-      navText.textContent = s.step.text;
-      navTrip.textContent = arrival(s.secs) + ' · ' + geo.formatDuration(s.secs) + ' · ' + geo.formatDistance(s.remaining);
+  function setHTML(id, html) {
+    var el = $(id);
+    if (el.getAttribute('data-html') !== html) {
+      el.innerHTML = html;
+      el.setAttribute('data-html', html);
     }
-    if (wasHidden !== navEl.hidden) map.render(); // the map just got taller or shorter
   }
 
-  function arrival(secs) {
-    return new Date(Date.now() + secs * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  function show(id, on) {
+    var el = $(id);
+    if (el.hidden === on) el.hidden = !on;
+  }
+
+  function topOf(el) {
+    var y = 0;
+    for (; el; el = el.offsetParent) y += el.offsetTop;
+    return y;
+  }
+
+  function clock(secs, short) {
+    var s = new Date(Date.now() + secs * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return short ? s.replace(/\s?[AP]M$/i, '') : s;
+  }
+
+  // --- States and sheets ---
+
+  function setState(s) {
+    state = s;
+    body.setAttribute('data-state', s);
+    map.setDriving(s === 'nav' || s === 'overview');
+    refresh();
+  }
+
+  function refresh() {
+    renderNav();
+    renderStatus();
+    renderCompass();
+    refreshKeys();
+    layout();
+  }
+
+  function openSheet(name) {
+    clearTimeout(timers.sheet);
+    if (sheet) $(sheet).classList.remove('leaving');
+    sheet = name;
+    $(name).classList.remove('leaving');
+    body.setAttribute('data-sheet', name);
+    refreshKeys();
+  }
+
+  function closeSheet() {
+    if (!sheet) return;
+    var el = $(sheet);
+    sheet = null;
+    el.classList.add('leaving');
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    timers.sheet = setTimeout(function () {
+      el.classList.remove('leaving');
+      if (!sheet) body.removeAttribute('data-sheet');
+    }, SHEET_OUT_MS);
+    refreshKeys();
+  }
+
+  // The map frames itself in the space between the cards.
+  function layout() {
+    var h = $('map').offsetHeight;
+    var top = 0;
+    var bottom = $('softkeys').offsetHeight;
+    ['banner', 'then'].forEach(function (id) {
+      var el = $(id);
+      if (el.offsetHeight) top = Math.max(top, topOf(el) + el.offsetHeight);
+    });
+    ['trip', 'preview', 'arrived'].forEach(function (id) {
+      var el = $(id);
+      if (el.offsetHeight) bottom = Math.max(bottom, h - topOf(el));
+    });
+    map.setInsets(top, bottom);
+  }
+
+  // --- Soft keys: [left, center, right, center style] ---
+
+  function stateKeys() {
+    switch (state) {
+      case 'explore':
+        if (!fix || !map.following()) return ['Search', icons.icon('locateOutline'), 'More', 'sym'];
+        if (isRotated()) return ['Search', icons.icon('compass'), 'More', 'sym'];
+        return ['Search', icons.icon('locate'), 'More', 'sym on'];
+      case 'preview':
+        return trip.plans.length ? ['Back', 'Go', '', 'pill go'] : ['Back', '', ''];
+      case 'nav':
+        if (!nav.route()) return ['', '', 'More'];
+        return map.following() ? ['Overview', 'Repeat', 'More'] : ['Overview', 'Resume', 'More', 'pill'];
+      case 'overview':
+        return ['Resume', '', 'More'];
+      case 'arrived':
+        return ['', 'Done', ''];
+    }
+    return ['', '', ''];
   }
 
   function refreshKeys() {
-    var k;
-    if (search.isOpen()) k = search.softkeys();
-    else if (!menuEl.hidden) k = ['', 'Select', 'Close'];
-    else if (!map.following()) k = ['Search', 'Follow', 'Options'];
-    else k = ['Search', nav.route() ? 'Repeat' : 'Following', 'Options'];
-    skLeft.textContent = k[0];
-    skCenter.textContent = k[1];
-    skRight.textContent = k[2];
-    skCenter.classList.toggle('on', k[1] === 'Following');
+    var k = sheet === 'search' ? search.softkeys() : sheet === 'settings' ? ['', 'Select', 'Done'] : stateKeys();
+    setText('sk-left', k[0]);
+    setText('sk-right', k[2]);
+    setHTML('sk-center', k[1]);
+    var cls = k[3] || '';
+    if ($('sk-center').className !== cls) $('sk-center').className = cls;
   }
 
-  // --- Options menu ---
+  // --- Turn card, trip bar, speed ---
 
-  function openMenu() {
-    var items = [
-      ['Zoom in  (3)', function () { map.zoomBy(1); }],
-      ['Zoom out  (1)', function () { map.zoomBy(-1); }],
-      ['Voice: ' + (nav.voice() ? 'on' : 'off'), function () {
-        nav.voice(!nav.voice());
-        toast('Voice ' + (nav.voice() ? 'on' : 'off'));
-      }]
+  function renderNav() {
+    var s = nav.state();
+    if (s.mode === 'pending') {
+      setHTML('glyph', s.error ? icons.maneuver('arrive') : icons.spinner);
+      setText('b-dist', s.error || 'Finding Route');
+      setText('b-road', s.dest.name);
+      show('then', false);
+      ['t-arrive', 't-time', 't-dist'].forEach(function (id) { setText(id, '–'); });
+    } else if (s.mode === 'on') {
+      var step = s.step;
+      if (s.rerouting) {
+        setHTML('glyph', icons.spinner);
+        setText('b-dist', 'Rerouting');
+      } else {
+        setHTML('glyph', icons.maneuver(step.type, step.modifier));
+        setText('b-dist', s.toNext < 20 ? 'Now' : geo.formatDistance(s.toNext));
+      }
+      setText('b-road', step.road);
+      show('then', !!s.then && !s.rerouting);
+      if (s.then) setHTML('then-glyph', icons.maneuver(s.then.type, s.then.modifier));
+
+      var t = geo.durationParts(s.secs);
+      var d = geo.distanceParts(s.remaining);
+      setText('t-arrive', clock(s.secs, true));
+      setText('t-time', t.value);
+      setText('t-time-unit', t.unit);
+      setText('t-dist', d.value);
+      setText('t-dist-unit', d.unit);
+
+      if (state === 'nav') map.autoZoom(zoomFor(fix ? fix.speed : 0, s.toNext));
+    }
+    var mph = fix && fix.speed > 0.5 ? Math.round(fix.speed * MPS_TO_MPH) : null;
+    show('speed', mph !== null);
+    if (mph !== null) setText('speed-val', String(mph));
+    layout();
+  }
+
+  // Closer in town, farther out on the highway, and close again as a turn comes up.
+  function zoomFor(speed, toNext) {
+    var z = speed > 24 ? 15 : speed > 13 ? 16 : 17;
+    return toNext < 250 ? 17 : z;
+  }
+
+  function syncRoute() {
+    var r = nav.route();
+    if (r !== shownRoute) {
+      shownRoute = r;
+      if (state !== 'preview') map.setRoutes(r ? [r] : [], 0);
+    } else if (r) {
+      map.refreshRoute();
+    }
+  }
+
+  // --- Preview: pick a route, then Go ---
+
+  function openPreview(dest) {
+    trip = emptyTrip();
+    trip.dest = dest;
+    setState('preview');
+    renderPreview();
+    planTrip();
+  }
+
+  function planTrip() {
+    var t = trip;
+    if (!fix || t.busy || t.plans.length) return;
+    t.busy = true;
+    t.error = '';
+    renderPreview();
+    nav.plan(t.dest).then(function (plans) {
+      if (trip !== t) return;
+      t.plans = plans;
+      t.busy = false;
+      renderPreview();
+      refreshKeys();
+      layout();
+      map.setRoutes(plans, 0);
+      map.fit(plans.map(function (p) { return p.coords; }));
+    }, function (err) {
+      if (trip !== t) return;
+      t.busy = false;
+      t.error = err.message;
+      renderPreview();
+      refreshKeys();
+    });
+  }
+
+  function renderPreview() {
+    var t = trip;
+    var r = t.plans[t.choice];
+    setText('p-name', t.dest ? t.dest.name : '');
+    if (r) {
+      setText('p-time', geo.formatDuration(r.duration));
+      setText('p-meta', geo.formatDistance(r.total) + ' · Arrive ' + clock(r.duration));
+    } else if (t.error) {
+      setText('p-time', 'No Route');
+      setText('p-meta', t.error);
+    } else {
+      setHTML('p-time', icons.spinner);
+      setText('p-meta', fix ? 'Finding routes' : 'Waiting for your location');
+    }
+    var alts = '';
+    if (t.plans.length > 1) {
+      var dots = t.plans.map(function (p, i) { return '<i' + (i === t.choice ? ' class="on"' : '') + '></i>'; }).join('');
+      var extra = Math.round((r.duration - t.plans[0].duration) / 60);
+      var label = !t.choice ? 'Fastest' : extra > 0 ? '+' + extra + ' min' : 'Same time';
+      alts = '<span class="dots">' + dots + '</span><span>' + label +
+        '</span><span class="hint">‹ ›</span>';
+    }
+    setHTML('p-alts', alts);
+    show('p-alts', !!alts);
+    layout();
+  }
+
+  function cycleRoute(d) {
+    var n = trip.plans.length;
+    if (n < 2) return;
+    trip.choice = (trip.choice + d + n) % n;
+    map.select(trip.choice);
+    renderPreview();
+  }
+
+  function startRoute() {
+    var r = trip.plans[trip.choice];
+    if (!r) return;
+    trip = emptyTrip();
+    shownRoute = null;
+    nav.start(r);
+    setState('nav');
+    map.recenter();
+  }
+
+  function backToSearch() {
+    trip = emptyTrip();
+    map.setRoutes([]);
+    setState('explore');
+    map.recenter();
+    openSheet('search');
+    search.open(true);
+  }
+
+  // --- Driving ---
+
+  function showOverview() {
+    var r = nav.route();
+    if (!r) return;
+    setState('overview');
+    map.fit([r.coords.slice(r.snap ? r.snap.idx : 0)]);
+  }
+
+  function resume() {
+    clearTimeout(timers.resume);
+    setState('nav');
+    map.recenter();
+  }
+
+  function endRoute() {
+    closeSheet();
+    nav.end();
+    flashPill('Route Ended');
+  }
+
+  nav.onchange = function () {
+    syncRoute();
+    if (!nav.active() && (state === 'nav' || state === 'overview')) {
+      setState('explore');
+      map.recenter();
+    }
+    refresh();
+  };
+
+  nav.onmessage = function (text) {
+    if (text) flashPill(text, 'warn');
+  };
+
+  nav.onarrive = function (dest) {
+    setText('arrived-name', dest.name);
+    setState('arrived');
+    map.recenter();
+    clearTimeout(timers.arrived);
+    timers.arrived = setTimeout(function () {
+      if (state === 'arrived') setState('explore');
+    }, ARRIVED_MS);
+  };
+
+  // --- Status pill, compass, scale ---
+
+  function flashPill(text, tone, ms) {
+    flash = { text: text, tone: tone || 'info', until: Date.now() + (ms || FLASH_MS) };
+    renderStatus();
+    clearTimeout(timers.flash);
+    timers.flash = setTimeout(renderStatus, (ms || FLASH_MS) + 50);
+  }
+
+  function renderStatus() {
+    var p = null;
+    if (flash && Date.now() < flash.until) p = flash;
+    else if (gpsError === 1) p = { text: 'Location Is Off', tone: 'bad' };
+    else if (!fix) p = { text: 'Locating', tone: 'locating' };
+    else if (Date.now() - fix.time > STALE_MS) p = { text: 'Weak GPS Signal', tone: 'warn' };
+    else if (navigator.onLine === false) p = { text: 'Offline', tone: 'muted' };
+    var pill = $('pill');
+    if (!p) {
+      show('pill', false);
+      return;
+    }
+    setText('pill-text', p.text);
+    if (pill.className !== p.tone) pill.className = p.tone;
+    show('pill', true);
+  }
+
+  function isRotated() {
+    var b = map.bearing();
+    return b > 1 && b < 359;
+  }
+
+  function renderCompass() {
+    show('compass', isRotated());
+    $('compass-needle').style.transform = 'rotate(' + (-map.bearing()).toFixed(1) + 'deg)';
+  }
+
+  function showScale() {
+    var s = geo.niceScale(map.metersPerPixel(), 72);
+    $('scale-bar').style.width = Math.round(s.px) + 'px';
+    setText('scale-text', s.label);
+    show('scale', true);
+    clearTimeout(timers.scale);
+    timers.scale = setTimeout(function () { show('scale', false); }, SCALE_MS);
+  }
+
+  map.onzoom = showScale;
+
+  // --- Settings sheet ---
+
+  function openSettings() {
+    openSheet('settings');
+    var rows = [
+      { icon: 'speaker', tint: 'green', label: 'Voice Guidance', on: function () { return nav.voice(); },
+        act: function () { nav.voice(!nav.voice()); } },
+      { icon: 'appearance', tint: 'blue', label: 'Appearance', value: function () { return APPEARANCE_NAMES[prefs.appearance]; },
+        act: cycleAppearance },
+      { icon: 'rotate', tint: 'orange', label: 'Rotate Map', on: function () { return prefs.rotate; },
+        act: toggleRotate },
+      null,
+      { icon: 'check', tint: 'gray', label: 'Phone Check', link: true,
+        act: function () { location.href = 'probe.html'; } }
     ];
-    if (nav.active()) items.push(['End route', function () { nav.end(); toast('Route ended'); }]);
-    items.push(['Phone check', function () { location.href = 'probe.html'; }]);
+    if (nav.active()) rows.push(null, { label: 'End Route', danger: true, act: endRoute });
 
-    menuList.innerHTML = '';
-    menuActions = items.map(function (item) {
+    var holder = $('settings-body');
+    var group = null;
+    holder.innerHTML = '';
+    settingsRows = [];
+    rows.forEach(function (r) {
+      if (!r) {
+        group = null;
+        return;
+      }
+      if (!group) {
+        group = document.createElement('ul');
+        group.className = 'group';
+        holder.appendChild(group);
+      }
       var li = document.createElement('li');
       li.tabIndex = 0;
-      li.textContent = item[0];
-      menuList.appendChild(li);
-      return item[1];
+      if (r.danger) {
+        li.className = 'danger';
+        li.textContent = r.label;
+      } else {
+        li.innerHTML = '<span class="icon-tile tint-' + r.tint + '">' + icons.icon(r.icon) + '</span>' +
+          '<span class="row-label clip"></span><span class="accessory"></span>';
+        li.querySelector('.row-label').textContent = r.label;
+      }
+      r.el = li;
+      group.appendChild(li);
+      settingsRows.push(r);
+      syncRow(r);
     });
-    menuEl.hidden = false;
-    menuList.children[0].focus();
+    settingsRows[0].el.focus();
   }
 
-  function closeMenu() {
-    menuEl.hidden = true;
-    if (document.activeElement) document.activeElement.blur();
+  function syncRow(r) {
+    var acc = r.el.querySelector('.accessory');
+    if (!acc) return;
+    if (r.on) {
+      if (!acc.firstChild) acc.innerHTML = '<span class="switch"><i></i></span>';
+      acc.firstChild.classList.toggle('on', r.on());
+    } else if (r.value) {
+      acc.innerHTML = '<span class="value"></span>' + icons.icon('chevron');
+      acc.firstChild.textContent = r.value();
+    } else if (r.link) {
+      acc.innerHTML = icons.icon('chevron');
+    }
   }
 
-  function menuKey(e) {
-    var items = Array.prototype.slice.call(menuList.children);
-    var i = items.indexOf(document.activeElement);
-    switch (e.key) {
+  function settingsKey(k) {
+    var i = settingsRows.map(function (r) { return r.el; }).indexOf(document.activeElement);
+    switch (k) {
       case 'ArrowDown':
-        items[Math.min(i + 1, items.length - 1)].focus();
+      case '8':
+        if (settingsRows[i + 1]) settingsRows[i + 1].el.focus();
         return true;
       case 'ArrowUp':
-        items[Math.max(i - 1, 0)].focus();
+      case '2':
+        if (settingsRows[i - 1]) settingsRows[i - 1].el.focus();
         return true;
       case 'Enter':
-        closeMenu();
-        if (i >= 0) menuActions[i]();
+      case '5':
+        if (settingsRows[i]) {
+          settingsRows[i].act();
+          if (sheet === 'settings') syncRow(settingsRows[i]);
+        }
         return true;
       case 'SoftRight':
+      case 'SoftLeft':
       case 'Backspace':
       case 'Escape':
-        closeMenu();
+        closeSheet();
         return true;
     }
     return false;
   }
 
-  // --- Keypad ---
-  // D-pad or 2/4/6/8 pans, Enter or 5 snaps back to you (or repeats the next turn), 1/3 zoom,
-  // soft keys or 7/9 open Search/Options. The digits are there because the regular KaiOS browser
-  // may keep the D-pad and soft keys for itself.
+  function cycleAppearance() {
+    prefs.appearance = APPEARANCES[(APPEARANCES.indexOf(prefs.appearance) + 1) % APPEARANCES.length];
+    savePrefs();
+    applyTheme();
+  }
 
-  function mapKey(e) {
-    switch (e.key) {
-      case 'ArrowUp': case '2': map.pan(0, -PAN_STEP); break;
-      case 'ArrowDown': case '8': map.pan(0, PAN_STEP); break;
-      case 'ArrowLeft': case '4': map.pan(-PAN_STEP, 0); break;
-      case 'ArrowRight': case '6': map.pan(PAN_STEP, 0); break;
-      case 'Enter': case '5':
-        if (map.following() && nav.route()) nav.repeat();
-        else map.recenter();
-        break;
-      case '1': case '-': map.zoomBy(-1); break;
-      case '3': case '=': case '+': map.zoomBy(1); break;
-      case 'SoftLeft': case '7': search.open(); break;
-      case 'SoftRight': case '9': openMenu(); break;
-      case '0':
-        if (!sim.enabled) return false;
-        sim.detour();
-        toast('Sim: leaving the route');
-        break;
-      default:
-        return false;
+  function toggleRotate() {
+    prefs.rotate = !prefs.rotate;
+    savePrefs();
+    map.setRotate(prefs.rotate);
+  }
+
+  function loadPrefs() {
+    var p = null;
+    try {
+      p = JSON.parse(localStorage.getItem(PREFS_KEY));
+    } catch (e) {}
+    p = p || {};
+    return {
+      appearance: APPEARANCES.indexOf(p.appearance) >= 0 ? p.appearance : 'auto',
+      rotate: p.rotate !== false
+    };
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch (e) {}
+  }
+
+  // Automatic appearance follows the sun where you are: dark map after dusk, for night driving.
+  function applyTheme() {
+    var theme = prefs.appearance;
+    if (theme === 'auto') {
+      var c = map.center();
+      theme = geo.sunAltitude(new Date(), c.lat, c.lon) > -4 ? 'light' : 'dark';
     }
+    if (root.getAttribute('data-theme') === theme) return;
+    root.setAttribute('data-theme', theme);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#000000' : '#f2f2f7');
+  }
+
+  // --- Keys ---
+
+  function mapKeys(k) {
+    switch (k) {
+      case 'ArrowUp': case '2': map.pan(0, -PAN_STEP); return true;
+      case 'ArrowDown': case '8': map.pan(0, PAN_STEP); return true;
+      case 'ArrowLeft': case '4': map.pan(-PAN_STEP, 0); return true;
+      case 'ArrowRight': case '6': map.pan(PAN_STEP, 0); return true;
+      case '1': case '-': map.zoomBy(-1); return true;
+      case '3': case '=': case '+': map.zoomBy(1); return true;
+    }
+    return false;
+  }
+
+  function simDetour() {
+    if (!sim.enabled) return false;
+    sim.detour();
+    flashPill('Simulating a wrong turn');
     return true;
   }
 
+  var handlers = {
+    explore: function (k) {
+      switch (k) {
+        case 'SoftLeft': case '7':
+          openSheet('search');
+          search.open(false);
+          return true;
+        case 'SoftRight': case '9':
+          openSettings();
+          return true;
+        case 'Enter': case '5':
+          if (!map.following()) map.recenter();
+          else if (isRotated()) map.resetNorth();
+          return true;
+        case '0':
+          return simDetour();
+      }
+      return mapKeys(k);
+    },
+
+    preview: function (k) {
+      switch (k) {
+        case 'Enter': case '5':
+          startRoute();
+          return true;
+        case 'SoftLeft': case 'Backspace': case 'Escape':
+          backToSearch();
+          return true;
+        case 'ArrowLeft': case '4':
+          cycleRoute(-1);
+          return true;
+        case 'ArrowRight': case '6':
+          cycleRoute(1);
+          return true;
+        case '1': case '3': case '-': case '=': case '+':
+          return mapKeys(k);
+      }
+      return false;
+    },
+
+    nav: function (k) {
+      switch (k) {
+        case 'SoftLeft': case '7':
+          showOverview();
+          return true;
+        case 'SoftRight': case '9':
+          openSettings();
+          return true;
+        case 'Enter': case '5':
+          if (map.following()) nav.repeat();
+          else resume();
+          return true;
+        case 'Backspace': case 'Escape':
+          if (!map.following()) {
+            resume();
+            return true;
+          }
+          if (Date.now() - exitArmedAt < EXIT_MS) return false; // second press: let it close the app
+          exitArmedAt = Date.now();
+          flashPill('Press Back again to exit', 'info', EXIT_MS);
+          return true;
+        case '0':
+          return simDetour();
+      }
+      return mapKeys(k);
+    },
+
+    overview: function (k) {
+      switch (k) {
+        case 'SoftLeft': case '7': case 'Enter': case '5': case 'Backspace': case 'Escape':
+          resume();
+          return true;
+        case 'SoftRight': case '9':
+          openSettings();
+          return true;
+      }
+      return mapKeys(k);
+    },
+
+    arrived: function (k) {
+      switch (k) {
+        case 'Enter': case '5': case 'SoftLeft': case 'SoftRight': case 'Backspace': case 'Escape':
+          setState('explore');
+          return true;
+      }
+      return mapKeys(k);
+    }
+  };
+
   document.addEventListener('keydown', function (e) {
-    var used = search.isOpen() ? search.key(e) : !menuEl.hidden ? menuKey(e) : mapKey(e);
+    var used = sheet === 'search' ? search.key(e)
+      : sheet === 'settings' ? settingsKey(e.key)
+        : handlers[state](e.key);
     if (used) e.preventDefault();
+    clearTimeout(timers.resume);
+    if (state === 'nav' && !sheet && !map.following()) timers.resume = setTimeout(resume, RESUME_MS);
+    renderCompass();
     refreshKeys();
   });
   document.addEventListener('focusin', refreshKeys); // e.g. search results arriving
+
+  search.onchoose = function (place) {
+    closeSheet();
+    openPreview(place);
+  };
+  search.onclose = closeSheet;
 
   // --- GPS ---
 
   function onFix(pos) {
     var c = pos.coords;
+    var first = !fix;
     fix = {
       lat: c.latitude,
       lon: c.longitude,
@@ -182,19 +675,22 @@
       speed: c.speed,
       time: Date.now()
     };
-    setStatus('GPS ±' + Math.round(c.accuracy) + ' m', c.accuracy <= 25 ? 'ok' : 'warn');
-    speedEl.textContent = typeof c.speed === 'number' && !isNaN(c.speed)
-      ? Math.round(c.speed * MPS_TO_MPH) + ' mph'
-      : '';
+    gpsError = 0;
+    map.setStale(false);
     map.setFix(fix);
     nav.update(fix);
+    syncRoute();
+    if (first) applyTheme();
+    if (state === 'preview') planTrip();
     renderNav();
+    renderStatus();
+    renderCompass();
+    if (state === 'explore') refreshKeys();
   }
 
   function onError(err) {
-    if (err.code === 1) setStatus('GPS: permission denied', 'bad');
-    else if (err.code === 2) setStatus('GPS: no signal', 'warn');
-    else setStatus('GPS: searching…', 'warn');
+    gpsError = err.code;
+    renderStatus();
   }
 
   function startGps() {
@@ -207,14 +703,11 @@
         timeout: 30000
       });
     } else {
-      setStatus('GPS: not supported', 'bad');
+      gpsError = 2;
     }
-
     setInterval(function () {
-      if (fix && Date.now() - fix.time > STALE_MS) {
-        setStatus('GPS: signal lost', 'bad');
-        speedEl.textContent = '';
-      }
+      if (fix) map.setStale(Date.now() - fix.time > STALE_MS);
+      renderStatus();
     }, 5000);
   }
 
@@ -229,25 +722,21 @@
 
   // --- Start ---
 
-  nav.onchange = function () {
-    renderNav();
-    refreshKeys();
-  };
-  nav.onmessage = toast;
-
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) map.save();
-    else keepScreenOn();
+    if (!document.hidden) keepScreenOn();
   });
+  window.addEventListener('online', renderStatus);
+  window.addEventListener('offline', renderStatus);
+  window.addEventListener('resize', layout);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
   }
 
-  map.render();
-  renderNav();
-  refreshKeys();
-  if (nav.active()) toast('Resuming route to ' + nav.state().dest.name);
+  applyTheme();
+  setInterval(applyTheme, 60000);
+  map.setRotate(prefs.rotate);
+  setState(nav.active() ? 'nav' : 'explore');
   startGps();
   keepScreenOn();
 })(window.FM = window.FM || {});

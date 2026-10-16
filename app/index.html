@@ -1,47 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#111111">
+  <meta name="theme-color" content="#f2f2f7">
   <title>Flip Map</title>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <header id="status">
-    <span id="gps">GPS: starting…</span>
-    <span id="speed"></span>
-  </header>
+<body data-state="explore">
 
-  <section id="nav" hidden>
-    <div id="nav-icon"></div>
-    <div id="nav-body">
-      <div id="nav-dist"></div>
-      <div id="nav-text"></div>
-      <div id="nav-trip"></div>
+  <!-- The map fills the screen; everything else floats over it. -->
+  <main id="map">
+    <div id="base">
+      <div id="world" class="world">
+        <div id="tiles-prev" class="tiles"></div>
+        <div id="tiles" class="tiles"></div>
+      </div>
+    </div>
+    <div id="world-over" class="world">
+      <svg id="routes" width="1" height="1" aria-hidden="true">
+        <path id="route-alts-edge" vector-effect="non-scaling-stroke"/>
+        <path id="route-alts" vector-effect="non-scaling-stroke"/>
+        <path id="route-edge" vector-effect="non-scaling-stroke"/>
+        <path id="route-line" vector-effect="non-scaling-stroke"/>
+        <circle id="route-dest" r="6.5" vector-effect="non-scaling-stroke"/>
+      </svg>
+    </div>
+    <div id="halo" hidden></div>
+    <div id="puck" hidden>
+      <div id="puck-heading">
+        <svg class="beam" viewBox="-40 -40 80 80" aria-hidden="true">
+          <defs>
+            <radialGradient id="beam-fade" cx="0" cy="0" r="40" gradientUnits="userSpaceOnUse">
+              <stop offset="0.2" stop-color="#0a84ff" stop-opacity="0.55"/>
+              <stop offset="1" stop-color="#0a84ff" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <path d="M0 0L-21 -34A40 40 0 0 1 21 -34Z" fill="url(#beam-fade)"/>
+        </svg>
+        <svg class="chevron" viewBox="-15 -15 30 30" aria-hidden="true">
+          <path d="M0 -11.5L9.5 10 0 5 -9.5 10Z"/>
+        </svg>
+      </div>
+      <div class="dot"></div>
+    </div>
+  </main>
+
+  <div id="top">
+    <section id="banner" aria-live="polite">
+      <div id="glyph" class="banner-glyph"></div>
+      <div class="banner-text">
+        <div id="b-dist" class="banner-dist"></div>
+        <div id="b-road" class="banner-road"></div>
+      </div>
+    </section>
+    <div id="then" hidden><span>Then</span><span id="then-glyph"></span></div>
+    <div id="pill" hidden><i id="pill-dot"></i><span id="pill-text"></span></div>
+  </div>
+
+  <div id="compass" hidden>
+    <svg id="compass-needle" viewBox="0 0 24 24" aria-hidden="true">
+      <path class="needle-n" d="M12 2.5l3.4 9.5H8.6z"/>
+      <path class="needle-s" d="M12 21.5L8.6 12h6.8z"/>
+    </svg>
+  </div>
+
+  <div id="bottom">
+    <div class="hud">
+      <div id="speed" hidden><b id="speed-val"></b><span>mph</span></div>
+      <div id="scale" hidden><span id="scale-text"></span><i id="scale-bar"></i></div>
+      <span id="attribution">© OpenStreetMap</span>
+    </div>
+
+    <section id="trip" class="card">
+      <div class="stat"><b id="t-arrive"></b><span>arrival</span></div>
+      <div class="stat"><b id="t-time"></b><span id="t-time-unit">min</span></div>
+      <div class="stat"><b id="t-dist"></b><span id="t-dist-unit">mi</span></div>
+    </section>
+
+    <section id="preview" class="card">
+      <div id="p-name" class="card-title clip"></div>
+      <div class="p-line"><span id="p-time" class="p-time"></span><span id="p-meta" class="card-sub clip"></span></div>
+      <div id="p-alts" class="p-alts" hidden></div>
+    </section>
+
+    <section id="arrived" class="card">
+      <span class="arrived-mark"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path class="i-s i-bold" d="M5.5 12.5l4.2 4.2L18.5 7.5"/></svg></span>
+      <div class="arrived-text">
+        <div class="card-title">Arrived</div>
+        <div id="arrived-name" class="card-sub clip"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="scrim"></div>
+
+  <section id="search" class="sheet">
+    <label class="field">
+      <span id="q-icon" class="field-icon"></span>
+      <input id="q" type="text" placeholder="Search Maps" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="sheet-scroll">
+      <h3 id="s-head" class="section-head" hidden></h3>
+      <ul id="results" class="rows"></ul>
+      <div id="s-empty" class="empty" hidden></div>
     </div>
   </section>
 
-  <main id="map">
-    <div id="tiles"></div>
-    <canvas id="route"></canvas>
-    <div id="accuracy" hidden></div>
-    <div id="me" hidden><div id="arrow"></div><div id="dot"></div></div>
-    <div id="crosshair" hidden></div>
-    <div id="zoom"></div>
-    <div id="toast" hidden></div>
-    <div id="attribution">© OpenStreetMap</div>
-  </main>
-
-  <section id="search" class="screen" hidden>
-    <input id="q" type="text" placeholder="Where to?" autocomplete="off">
-    <p id="search-msg"></p>
-    <ul id="results" class="list"></ul>
-  </section>
-
-  <section id="menu" class="screen" hidden>
-    <ul id="menu-items" class="list"></ul>
+  <section id="settings" class="sheet">
+    <h2 class="sheet-title">Settings</h2>
+    <div id="settings-body" class="sheet-scroll"></div>
   </section>
 
   <footer id="softkeys">
@@ -51,6 +121,7 @@
   </footer>
 
   <script src="js/geo.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/map.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/search.js"></script>

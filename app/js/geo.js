@@ -1,4 +1,4 @@
-// Map math and US-unit formatting. Shared by every other script through window.FM.
+// Map math, sun position, and US-unit formatting. Shared by every other script through window.FM.
 (function (FM) {
   'use strict';
 
@@ -78,13 +78,35 @@
     return COMPASS[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
   }
 
+  // Height of the sun above the horizon, in degrees. NOAA's low-precision formulas, good to a
+  // fraction of a degree, which is plenty for switching between day and night appearance.
+  function sunAltitude(date, lat, lon) {
+    var d = date.getTime() / 86400000 - 10957.5; // days since 2000-01-01 12:00 UTC
+    var g = (357.529 + 0.98560028 * d) * RAD;
+    var q = 280.459 + 0.98564736 * d;
+    var L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD;
+    var e = (23.439 - 0.00000036 * d) * RAD;
+    var dec = Math.asin(Math.sin(e) * Math.sin(L));
+    var ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+    var hourAngle = (280.46061837 + 360.98564736629 * d + lon) * RAD - ra;
+    return Math.asin(Math.sin(lat * RAD) * Math.sin(dec) +
+      Math.cos(lat * RAD) * Math.cos(dec) * Math.cos(hourAngle)) / RAD;
+  }
+
   // --- Formatting ---
 
-  function formatDistance(m) {
+  function distanceParts(m) {
     var ft = m * FT_PER_M;
-    if (ft < 1000) return (ft < 100 ? Math.round(ft / 10) * 10 : Math.round(ft / 50) * 50) + ' ft';
+    if (ft < 1000) {
+      return { value: String(ft < 100 ? Math.round(ft / 10) * 10 : Math.round(ft / 50) * 50), unit: 'ft' };
+    }
     var mi = m / M_PER_MILE;
-    return (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + ' mi';
+    return { value: mi < 10 ? mi.toFixed(1) : String(Math.round(mi)), unit: 'mi' };
+  }
+
+  function formatDistance(m) {
+    var p = distanceParts(m);
+    return p.value + ' ' + p.unit;
   }
 
   function spokenDistance(m) {
@@ -97,10 +119,33 @@
     return (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + ' miles';
   }
 
-  function formatDuration(s) {
+  function durationParts(s) {
     var min = Math.max(1, Math.round(s / 60));
-    if (min < 60) return min + ' min';
-    return Math.floor(min / 60) + ' h ' + (min % 60) + ' min';
+    if (min < 60) return { value: String(min), unit: 'min' };
+    var rest = min % 60;
+    return { value: Math.floor(min / 60) + ':' + (rest < 10 ? '0' : '') + rest, unit: 'hr' };
+  }
+
+  function formatDuration(s) {
+    var p = durationParts(s);
+    return p.value + ' ' + p.unit;
+  }
+
+  // The longest round distance (50 ft, 500 ft, 1 mi, ...) whose bar fits in maxPx.
+  function niceScale(mpp, maxPx) {
+    var ft = maxPx * mpp * FT_PER_M;
+    if (ft < 2640) {
+      var f = largestUnder([50, 100, 200, 500, 1000, 2000], ft);
+      return { px: f / FT_PER_M / mpp, label: f + ' ft' };
+    }
+    var mi = largestUnder([0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500], ft / 5280);
+    return { px: mi * M_PER_MILE / mpp, label: mi + ' mi' };
+  }
+
+  function largestUnder(steps, max) {
+    var best = steps[0];
+    steps.forEach(function (v) { if (v <= max) best = v; });
+    return best;
   }
 
   FM.geo = {
@@ -112,8 +157,12 @@
     bearing: bearing,
     toSegment: toSegment,
     compass: compass,
+    sunAltitude: sunAltitude,
+    distanceParts: distanceParts,
     formatDistance: formatDistance,
     spokenDistance: spokenDistance,
-    formatDuration: formatDuration
+    durationParts: durationParts,
+    formatDuration: formatDuration,
+    niceScale: niceScale
   };
 })(window.FM = window.FM || {});

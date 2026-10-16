@@ -1,4 +1,4 @@
-// Turn-by-turn: gets a driving route, tracks your progress along it, speaks the turns, reroutes.
+// Turn-by-turn: plans routes, follows your progress along one, speaks the turns, reroutes.
 (function (FM) {
   'use strict';
 
@@ -12,52 +12,82 @@
   var OFF_ROUTE_FIXES = 3;
   var RETRY_GAP_MS = 15000;
   var ARRIVE_M = 30;
+  var THEN_M = 300; // a second turn this soon after the next one gets a "Then" hint
 
   var route = null; // see build()
-  var pending = loadDest(); // destination waiting on a GPS fix or a network retry
+  var pending = loadDest(); // a saved trip waiting for a GPS fix or a network retry
   var lastFix = null;
   var busy = false;
   var lastRequest = 0;
+  var lastError = '';
   var offCount = 0;
   var voice = loadVoice();
 
-  // --- Getting a route ---
+  // --- Getting routes ---
 
-  function go(dest) {
-    pending = dest;
-    route = null;
-    lastRequest = 0;
-    saveDest(dest);
-    FM.map.setRoute(null);
-    notify();
-    if (lastFix) update(lastFix);
-  }
-
-  function request(from, dest, isReroute) {
-    busy = true;
-    lastRequest = Date.now();
-    message(isReroute ? 'Rerouting…' : 'Finding route…');
+  function fetchRoutes(from, dest, alternatives) {
     var url = ROUTER_URL + from.lon + ',' + from.lat + ';' + dest.lon + ',' + dest.lat +
-      '?overview=false&steps=true&geometries=geojson';
-    fetch(url)
+      '?overview=false&steps=true&geometries=geojson' + (alternatives ? '&alternatives=true' : '');
+    return fetch(url)
       .then(function (res) {
-        if (!res.ok) throw new Error('Router error ' + res.status);
+        if (!res.ok) throw new Error('Routing is unavailable');
         return res.json();
       })
       .then(function (data) {
         if (data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('No route found');
-        // The destination may have changed or been cancelled while we waited.
+        return data.routes.map(function (r) { return build(r, dest); });
+      });
+  }
+
+  function explain(err) {
+    return navigator.onLine === false || err instanceof TypeError ? 'No connection' : err.message;
+  }
+
+  // Choices to preview before starting, fastest first.
+  function plan(dest) {
+    if (!lastFix) return Promise.reject(new Error('Waiting for your location'));
+    return fetchRoutes(lastFix, dest, true).then(function (list) {
+      return list.sort(function (a, b) { return a.duration - b.duration; });
+    }, function (err) {
+      throw new Error(explain(err));
+    });
+  }
+
+  function start(r) {
+    route = r;
+    pending = null;
+    offCount = 0;
+    lastError = '';
+    lastRequest = Date.now();
+    saveDest(r.dest);
+    say('Starting route. ' + r.steps[0].text, false);
+    if (lastFix) track(lastFix);
+    notify();
+  }
+
+  // Resuming a saved trip, or rerouting: no preview, just the best route from here.
+  function request(from, dest, isReroute) {
+    busy = true;
+    lastRequest = Date.now();
+    notify();
+    fetchRoutes(from, dest, false)
+      .then(function (list) {
+        // The trip may have been ended or changed while we waited.
         if (dest !== (route ? route.dest : pending)) return;
-        route = build(data.routes[0], dest);
+        route = list[0];
         pending = null;
         offCount = 0;
-        FM.map.setRoute(route.coords);
-        message('');
-        say((isReroute ? 'Route updated. ' : 'Starting route. ') + route.steps[0].text);
+        lastError = '';
+        if (!isReroute) say('Resuming route. ' + route.steps[0].text, false);
         track(from);
+        if (isReroute && route) {
+          route.said[route.next.i] = 1;
+          say(inDistance(route.toNext, route.next), false);
+        }
       })
       .catch(function (err) {
-        message(navigator.onLine === false ? 'No data connection' : err.message || 'Route failed');
+        lastError = explain(err);
+        message(lastError);
       })
       .then(function () {
         busy = false;
@@ -65,8 +95,8 @@
       });
   }
 
-  // OSRM gives a list of steps, each with its own piece of road geometry. Stitch the pieces into one
-  // line and remember where along it (in meters) each maneuver happens.
+  // OSRM gives a list of steps, each with its own piece of road. Stitch the pieces into one line and
+  // remember where along it (in meters) each maneuver happens.
   function build(r, dest) {
     var coords = [];
     var steps = r.legs[0].steps.map(function (s, i) {
@@ -77,9 +107,10 @@
       return {
         i: i,
         type: s.maneuver.type,
+        modifier: s.maneuver.modifier || '',
         startIdx: startIdx,
-        text: instruction(s),
-        icon: icon(s.maneuver),
+        text: instruction(s), // spoken
+        road: label(s, dest), // shown under the distance
         major: isMajor(s.maneuver)
       };
     });
@@ -100,6 +131,7 @@
       said: {}, // step index -> 1 (early warning given) or 2 (turn-now given)
       lastIdx: 0,
       progress: 0,
+      snap: null, // where you are on the line
       next: steps[steps.length - 1],
       toNext: cum[cum.length - 1]
     };
@@ -118,14 +150,21 @@
 
   function track(fix) {
     var m = match(fix.lat, fix.lon);
+    var c = route.coords;
     var tolerance = OFF_ROUTE_M + Math.min(fix.accuracy || 0, 50);
     route.lastIdx = m.idx;
     route.progress = m.progress;
+    route.snap = {
+      idx: m.idx,
+      lat: c[m.idx][0] + m.t * (c[m.idx + 1][0] - c[m.idx][0]),
+      lon: c[m.idx][1] + m.t * (c[m.idx + 1][1] - c[m.idx][1])
+    };
     offCount = m.dist > tolerance ? offCount + 1 : 0;
 
     if (route.total - m.progress < ARRIVE_M && m.dist < tolerance) {
-      say('You have arrived');
-      message('Arrived: ' + route.dest.name);
+      var dest = route.dest;
+      say('You have arrived', true);
+      if (FM.nav.onarrive) FM.nav.onarrive(dest);
       end();
       return;
     }
@@ -150,11 +189,11 @@
   function scan(lat, lon, from, to) {
     var c = route.coords;
     var cum = route.cum;
-    var best = { dist: Infinity, idx: from, progress: cum[from] };
+    var best = { dist: Infinity, idx: from, t: 0, progress: cum[from] };
     for (var i = from; i <= to; i++) {
       var s = geo.toSegment(lat, lon, c[i], c[i + 1]);
       if (s.dist < best.dist) {
-        best = { dist: s.dist, idx: i, progress: cum[i] + s.t * (cum[i + 1] - cum[i]) };
+        best = { dist: s.dist, idx: i, t: s.t, progress: cum[i] + s.t * (cum[i + 1] - cum[i]) };
       }
     }
     return best;
@@ -168,7 +207,19 @@
     return route.steps[route.steps.length - 1];
   }
 
-  // Two prompts per turn: an early warning, then "turn now". Both scale with speed.
+  function thenStep() {
+    var n = route.next;
+    for (var i = n.i + 1; i < route.steps.length; i++) {
+      var s = route.steps[i];
+      if (!s.major) continue;
+      // Only worth a hint if it's soon and the arrow says something ("Then ↑" doesn't).
+      var turns = s.type === 'arrive' || (s.modifier && s.modifier !== 'straight');
+      return s.at - n.at < THEN_M && turns ? s : null;
+    }
+    return null;
+  }
+
+  // Two prompts per turn: an early warning, then "turn now" (with a buzz). Both scale with speed.
   function announce(step, d, speed) {
     var v = Math.max(speed || 0, 8);
     var near = Math.max(40, v * 6);
@@ -176,10 +227,10 @@
     var said = route.said[step.i] || 0;
     if (said < 2 && d <= near) {
       route.said[step.i] = 2;
-      if (step.type !== 'arrive') say(step.text);
+      if (step.type !== 'arrive') say(step.text, true);
     } else if (said < 1 && d <= far && d > near * 1.5) {
       route.said[step.i] = 1;
-      say(inDistance(d, step));
+      say(inDistance(d, step), false);
     }
   }
 
@@ -191,17 +242,22 @@
     route = null;
     pending = null;
     offCount = 0;
+    lastError = '';
     clearDest();
-    FM.map.setRoute(null);
     notify();
   }
 
-  // --- Words and arrows for each maneuver ---
+  // --- Words for each maneuver ---
+
+  function roadName(s) {
+    if (s.name) return s.name;
+    return s.ref ? s.ref.split(';')[0].replace(/^(I|US) (\d)/, '$1-$2') : '';
+  }
 
   function instruction(s) {
     var m = s.maneuver;
     var mod = m.modifier || '';
-    var road = s.name || s.ref || '';
+    var road = roadName(s);
     var onto = road ? ' onto ' + road : '';
     var side = mod.indexOf('left') >= 0 ? 'left' : mod.indexOf('right') >= 0 ? 'right' : '';
     if (mod === 'uturn' && m.type !== 'depart' && m.type !== 'arrive') return 'Make a U-turn' + onto;
@@ -212,7 +268,7 @@
         return 'Arrive at destination' + (side ? ', on the ' + side : '');
       case 'roundabout':
       case 'rotary':
-        return 'At the roundabout, take exit ' + (m.exit || 1) + onto;
+        return 'At the roundabout, take the ' + ordinal(m.exit || 1) + ' exit' + onto;
       case 'exit roundabout':
       case 'exit rotary':
         return 'Exit the roundabout' + onto;
@@ -221,7 +277,8 @@
       case 'on ramp':
         return 'Take the ramp' + (side ? ' on the ' + side : '') + onto;
       case 'off ramp':
-        return 'Take the exit' + (side ? ' on the ' + side : '') + (s.destinations ? ' toward ' + s.destinations : onto);
+        return 'Take the exit' + (side ? ' on the ' + side : '') +
+          (s.destinations ? ' toward ' + s.destinations : onto);
       case 'fork':
         return 'Keep ' + (side || 'straight') + onto;
       case 'continue':
@@ -234,6 +291,23 @@
     return 'Turn ' + mod.replace('slight', 'slightly') + onto;
   }
 
+  // The line under the distance: the road you turn onto, since the arrow already says which way.
+  function label(s, dest) {
+    var m = s.maneuver;
+    var road = roadName(s);
+    if (m.type === 'arrive') return dest.name;
+    if (m.type === 'off ramp') {
+      var exit = s.exits ? 'Exit ' + s.exits.split(';')[0] : '';
+      return [exit, s.destinations || road].filter(Boolean).join(' · ') || 'Take the exit';
+    }
+    if ((m.type === 'roundabout' || m.type === 'rotary') && !road) return ordinal(m.exit || 1) + ' exit';
+    return road || instruction({ maneuver: m });
+  }
+
+  function ordinal(k) {
+    return k + (k % 10 === 1 && k !== 11 ? 'st' : k % 10 === 2 && k !== 12 ? 'nd' : k % 10 === 3 && k !== 13 ? 'rd' : 'th');
+  }
+
   // Road name changes and "keep going straight" aren't worth a prompt.
   function isMajor(m) {
     var mod = m.modifier || '';
@@ -243,21 +317,10 @@
     return true;
   }
 
-  function icon(m) {
-    var mod = m.modifier || '';
-    if (m.type === 'arrive') return '◉';
-    if (m.type === 'roundabout' || m.type === 'rotary') return '↻';
-    if (mod === 'uturn') return '↶';
-    if (mod.indexOf('slight') === 0) return mod.indexOf('left') > 0 ? '↖' : '↗';
-    if (mod.indexOf('left') >= 0) return '←';
-    if (mod.indexOf('right') >= 0) return '→';
-    return '↑';
-  }
+  // --- Speech, storage ---
 
-  // --- Speech, vibration, storage ---
-
-  function say(text) {
-    if (navigator.vibrate) navigator.vibrate(150);
+  function say(text, buzz) {
+    if (buzz && navigator.vibrate) navigator.vibrate(120);
     if (!voice || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
     try {
       window.speechSynthesis.speak(new window.SpeechSynthesisUtterance(text));
@@ -303,11 +366,13 @@
   }
 
   FM.nav = {
-    go: go,
+    plan: plan,
+    start: start,
     update: update,
     end: end,
     onchange: null,
     onmessage: null,
+    onarrive: null,
 
     active: function () {
       return !!(route || pending);
@@ -318,7 +383,7 @@
     },
 
     state: function () {
-      if (pending) return { mode: 'pending', dest: pending };
+      if (pending) return { mode: 'pending', dest: pending, error: busy ? '' : lastError };
       if (!route) return { mode: 'off' };
       var remaining = Math.max(0, route.total - route.progress);
       return {
@@ -326,13 +391,15 @@
         dest: route.dest,
         step: route.next,
         toNext: route.toNext,
+        then: thenStep(),
         remaining: remaining,
-        secs: route.total ? route.duration * remaining / route.total : 0
+        secs: route.total ? route.duration * remaining / route.total : 0,
+        rerouting: busy
       };
     },
 
     repeat: function () {
-      if (route) say(inDistance(route.toNext, route.next));
+      if (route) say(inDistance(route.toNext, route.next), false);
     },
 
     voice: function (on) {

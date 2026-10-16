@@ -15,7 +15,7 @@
   "theme_color": "#111111",
   "orientation": "natural",
   "b2g_features": {
-    "version": "0.2.0",
+    "version": "0.3.0",
     "core": true,
     "origin": "flipmap",
     "subtitle": "Where am I?",
