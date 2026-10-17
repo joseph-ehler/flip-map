@@ -1,0 +1,11 @@
+{
+  "name": "flip-map",
+  "private": true,
+  "description": "Turn-by-turn navigation for the TCL Flip 4. The app itself has no build step or dependencies; this file is only for tests.",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}
