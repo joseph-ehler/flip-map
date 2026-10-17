@@ -75,6 +75,7 @@
   var theme = 'day';
   var callout = null; // the street of the next turn, labeled on the map while driving
   var labelTimer = null;
+  var lookAhead = 0.72; // while driving: your height on screen, as a share of the free space
   var labelHow = 'none';
 
   // --- Coordinates ---
@@ -98,10 +99,8 @@
     var h = mapEl.clientHeight;
     var top = insets.top;
     var bottom = h - insets.bottom;
-    // While driving you sit low on screen, lower the faster you go, so more of the road ahead shows.
-    var speed = fix && fix.speed > 0 ? fix.speed : 0;
-    var low = 0.68 + 0.1 * geo.clamp(speed / 30, 0, 1);
-    return { x: w / 2, y: top + (bottom - top) * (driving && !fitted ? low : 0.5) };
+    // While driving you sit low on screen so more of the road ahead shows (app.js tunes how low).
+    return { x: w / 2, y: top + (bottom - top) * (driving && !fitted ? lookAhead : 0.5) };
   }
 
   function toScreen(p, f, c) {
@@ -508,6 +507,11 @@
     setTheme: function (t) {
       theme = t === 'dark' ? 'night' : 'day';
       if (FM.carto.setStyle(theme, driving ? 'drive' : 'explore')) restyle();
+    },
+
+    // Takes effect with the next GPS update, so the camera glides there along with the map.
+    setLookAhead: function (f) {
+      lookAhead = f;
     },
 
     // { lat, lon, text } for the street of the next turn, or null.

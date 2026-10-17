@@ -35,7 +35,7 @@
         <svg class="beam" viewBox="-40 -40 80 80" aria-hidden="true">
           <defs>
             <radialGradient id="beam-fade" cx="0" cy="0" r="40" gradientUnits="userSpaceOnUse">
-              <stop offset="0.2" stop-color="#0a84ff" stop-opacity="0.55"/>
+              <stop offset="0.2" stop-color="#0a84ff" stop-opacity="0.7"/>
               <stop offset="1" stop-color="#0a84ff" stop-opacity="0"/>
             </radialGradient>
           </defs>
@@ -51,13 +51,16 @@
 
   <div id="top">
     <section id="banner" aria-live="polite">
-      <div id="glyph" class="banner-glyph"></div>
-      <div class="banner-text">
-        <div id="b-dist" class="banner-dist"></div>
-        <div id="b-road" class="banner-road"></div>
+      <div class="banner-main">
+        <div id="glyph" class="banner-glyph"></div>
+        <div class="banner-text">
+          <div id="b-dist" class="banner-dist"></div>
+          <div id="b-road" class="banner-road"></div>
+        </div>
+        <div id="then" class="banner-then" hidden><span>Then</span><span id="then-glyph"></span></div>
       </div>
+      <div id="lanes" class="lanes" hidden></div>
     </section>
-    <div id="then" hidden><span>Then</span><span id="then-glyph"></span></div>
     <div id="pill" hidden><i id="pill-dot"></i><span id="pill-text"></span></div>
   </div>
 

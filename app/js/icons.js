@@ -92,6 +92,44 @@
     return turn(a, 'straight');
   }
 
+  // --- Lane arrows (24x32): one per lane, every direction the lane allows drawn from one stem.
+  // Directions that fit the route are bright; the rest, and lanes you shouldn't use, are dim. ---
+
+  function lane(indications, valid, fits) {
+    var body = '';
+    var stem = false;
+    indications.forEach(function (ind) {
+      var on = valid && fits(ind);
+      stem = stem || on;
+      body += laneBranch(ind, on ? 'l-on' : 'l-off');
+    });
+    body = path(stem ? 'l-on' : 'l-off', indications[0] === 'uturn' ? 'M16 30V18' : 'M12 30V18') + body;
+    return svg('0 0 24 32', body, 'lane');
+  }
+
+  function laneBranch(ind, cls) {
+    if (ind === 'none') return path(cls, 'M12 18V6');
+    if (ind === 'uturn') {
+      return path(cls, 'M16 18V15a5 5 0 0 0-10 0v4') + smallHead(6, 19, 180, cls);
+    }
+    var a = ANGLES[ind] !== undefined ? ANGLES[ind] : 0;
+    var r = a * Math.PI / 180;
+    var fx = Math.sin(r);
+    var fy = -Math.cos(r);
+    var ex = 12 + fx * 8;
+    var ey = (a === 0 ? 10 : 18) + fy * (a === 0 ? 2 : 8);
+    var d = a === 0 ? 'M12 18V' + n(ey) : 'M12 18L' + n(ex) + ' ' + n(ey);
+    return path(cls, d) + smallHead(ex, ey, a, cls);
+  }
+
+  function smallHead(x, y, a, cls) {
+    var r = a * Math.PI / 180;
+    var fx = Math.sin(r);
+    var fy = -Math.cos(r);
+    return '<path class="' + cls + ' l-head" d="M' + n(x + fx * 5.5) + ' ' + n(y + fy * 5.5) +
+      'L' + n(x - fy * 4.5) + ' ' + n(y + fx * 4.5) + 'L' + n(x + fy * 4.5) + ' ' + n(y - fx * 4.5) + 'Z"/>';
+  }
+
   // --- Interface icons (24x24) ---
 
   var ICONS = {
@@ -129,6 +167,7 @@
 
   FM.icons = {
     maneuver: maneuver,
+    lane: lane,
     icon: icon,
     spinner: spinner
   };

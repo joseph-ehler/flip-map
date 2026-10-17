@@ -128,7 +128,7 @@
     var h = $('map').offsetHeight;
     var top = 0;
     var bottom = $('softkeys').offsetHeight;
-    ['banner', 'then'].forEach(function (id) {
+    ['banner'].forEach(function (id) {
       var el = $(id);
       if (el.offsetHeight) top = Math.max(top, topOf(el) + el.offsetHeight);
     });
@@ -149,7 +149,7 @@
         if (isRotated()) return ['Search', icons.icon('compass'), 'More', 'sym'];
         return ['Search', icons.icon('locate'), 'More', 'sym on'];
       case 'preview':
-        return trip.plans.length ? ['Back', 'Go', '', 'pill go'] : ['Back', '', ''];
+        return trip.plans.length ? ['Back', 'Go', '', 'pill'] : ['Back', '', ''];
       case 'nav':
         if (!nav.route()) return ['', '', 'More'];
         return map.following() ? ['Overview', 'Repeat', 'More'] : ['Overview', 'Resume', 'More', 'pill'];
@@ -180,6 +180,7 @@
       setText('b-dist', s.error || 'Finding Route');
       setText('b-road', s.dest.name);
       show('then', false);
+      show('lanes', false);
       ['t-arrive', 't-time', 't-dist'].forEach(function (id) { setText(id, '–'); });
     } else if (s.mode === 'on') {
       var step = s.step;
@@ -196,6 +197,11 @@
         callout = { lat: step.loc[0], lon: step.loc[1], text: geo.shortRoad(step.street) };
       }
       if (s.then) setHTML('then-glyph', icons.maneuver(s.then.type, s.then.modifier));
+      if (s.lanes && !s.rerouting) {
+        var fits = function (ind) { return nav.laneFits(ind, s.lanes.modifier); };
+        setHTML('lanes', s.lanes.lanes.map(function (l) { return icons.lane(l.indications, l.valid, fits); }).join(''));
+      }
+      show('lanes', !!s.lanes && !s.rerouting);
 
       var t = geo.durationParts(s.secs);
       var d = geo.distanceParts(s.remaining);
@@ -205,10 +211,23 @@
       setText('t-dist', d.value);
       setText('t-dist-unit', d.unit);
 
-      if (state === 'nav') map.autoZoom(zoomFor(fix ? fix.speed : 0, s.toNext));
+      if (state === 'nav') {
+        var v = fix && fix.speed > 0 ? fix.speed : 0;
+        map.autoZoom(zoomFor(v, s.toNext));
+        map.setLookAhead(lookAhead(v, s.toNext));
+      }
     }
     map.setCallout(callout);
     layout();
+  }
+
+  // Where you sit while driving, as a share of the free space from the top: low (more road ahead)
+  // as a turn comes up, a little higher and calmer on long straight stretches.
+  function lookAhead(speed, toNext) {
+    var fast = geo.clamp(speed / 30, 0, 1);
+    if (toNext < 300) return 0.8;
+    if (toNext > 1500) return 0.66 + 0.04 * fast;
+    return 0.72 + 0.04 * fast;
   }
 
   // Closer in town, farther out on the highway, and close again as a turn comes up.
@@ -684,6 +703,9 @@
     refreshKeys();
   });
   document.addEventListener('focusin', refreshKeys); // e.g. search results arriving
+
+  // Simulator only: FM.debug.preview({ name, lat, lon }) opens a route preview to anywhere.
+  if (sim.enabled) FM.debug = { preview: openPreview };
 
   search.onchoose = function (place) {
     closeSheet();

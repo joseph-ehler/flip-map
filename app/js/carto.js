@@ -28,15 +28,15 @@
   // Day: warm, quiet paper. Night: deep charcoal with roads lifted out of it, not an inverted day map.
   var PALETTES = {
     day: {
-      land: '#f4f2ed', green: '#dbe9d1', wood: '#d3e4c9', water: '#b6d5ee', building: '#e6e2da',
-      runway: '#dedad2', rail: '#cdc8bf', path: '#ded9cf',
-      fill: { motorway: '#f6c45e', trunk: '#f9d68a', primary: '#fce6ad', secondary: '#ffffff', tertiary: '#ffffff', minor: '#ffffff', service: '#ffffff' },
-      edge: { motorway: '#dca13a', trunk: '#e2b867', primary: '#e3c78f', secondary: '#d3cdc1', tertiary: '#d7d1c6', minor: '#dfdad1', service: '#e3dfd7' }
+      land: '#f3f1ec', green: '#d3e6c5', wood: '#cbe0be', water: '#aacdec', building: '#e3ded4',
+      runway: '#dbd6cd', rail: '#c7c1b7', path: '#d8d2c7',
+      fill: { motorway: '#f5bf53', trunk: '#f8d27d', primary: '#fce3a4', secondary: '#ffffff', tertiary: '#ffffff', minor: '#ffffff', service: '#ffffff' },
+      edge: { motorway: '#cf9229', trunk: '#d8a84f', primary: '#d9b977', secondary: '#c4bdaf', tertiary: '#c9c2b5', minor: '#d1cbc0', service: '#d9d4cb' }
     },
     night: {
       land: '#1a1c20', green: '#1c2820', wood: '#1c2920', water: '#0f2134', building: '#24272c',
       runway: '#2a2d32', rail: '#2c2f35', path: '#292c31',
-      fill: { motorway: '#8a7244', trunk: '#6e6553', primary: '#555a64', secondary: '#4a4f58', tertiary: '#454951', minor: '#3a3d44', service: '#32353b' },
+      fill: { motorway: '#8f7646', trunk: '#726855', primary: '#5a5f69', secondary: '#4e535c', tertiary: '#484c55', minor: '#3e4148', service: '#34373d' },
       edge: { motorway: '#4a3f2c', trunk: '#3f3a31', primary: '#33363d', secondary: '#2d3036', tertiary: '#2b2e34', minor: '#27292e', service: '#25272c' }
     }
   };

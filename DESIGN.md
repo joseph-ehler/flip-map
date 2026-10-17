@@ -78,6 +78,22 @@ The map is drawn on the phone from vector data (OpenFreeMap, built from OpenStre
   - Zoom follows speed, and zooms back in as a turn approaches.
   - The route widens with zoom so it always covers its road, and is drawn only from your position forward.
 
+## Lane guidance
+
+The routing service passes along OpenStreetMap's turn lanes at each junction (left to right, which ones suit the route). The app shows them only when the data can be trusted.
+
+- **When it shows:** the junction has at least two lanes, some lanes are not recommended, and every recommended lane really allows this turn. If any of that fails, the card shows the turn alone. It never shows a guess.
+- **Where:** one row of lane arrows under the turn, appearing about 500 m out (or 25 seconds at highway speed) and disappearing after the turn. The lanes to use are white; the others are solid gray.
+- **Voice:** the early warning adds the lane: "In half a mile, turn right onto SW 34th Street. Use the right lane."
+- **Wording:** it describes lanes by position ("the left lane", "the 2 right lanes"). Phone GPS can't tell which lane you're in, so it never says "you're in the wrong lane".
+- **Not attempted:** drawing individual lanes on the moving map. A road's centerline and lane count aren't enough geometry to draw lanes honestly, and turn pockets and medians are mostly missing from the data.
+
+## Turn card and camera
+
+- **Turn card:** one row of arrow, distance, and street. "Then" folds in at its right edge instead of adding a row. The lane row appears only near a junction. A simple turn takes 55 px of the 320 px screen.
+- **Camera:** you sit lower on screen as a turn approaches (80% of the free space within 300 m), a little higher on long straight stretches (66–70% beyond 1.5 km), and in between otherwise, so more road ahead shows when it matters.
+- **Color rule:** blue is for navigation (route, Go, Resume). Green means done (arrival). Red is for destructive actions and location problems.
+
 ## GPS states
 
 | State | What shows | Way out |

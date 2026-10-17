@@ -8,6 +8,7 @@ Turn-by-turn navigation for the TCL Flip 4 5G (KaiOS 4.0). It's plain HTML, CSS,
 - Place search: type with T9, and recent destinations are one key away. Results show icons by kind of place.
 - Route preview before you start: time, distance, and arrival. ◀ ▶ switch between alternative routes, and Go starts.
 - A turn card with a drawn arrow, the distance, and the street. A "Then" hint appears when two turns come close together.
+- Lane guidance from OpenStreetMap's lane data, shown and spoken only when the data agrees with the turn.
 - A trip bar showing arrival time, time left, and miles left.
 - Overview of the whole remaining route.
 - Spoken turns: an early warning, then "turn now" with a buzz.

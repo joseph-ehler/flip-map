@@ -112,6 +112,7 @@
         text: instruction(s), // spoken
         road: label(s, dest), // shown under the distance
         street: roadName(s), // the real name, if the road has one
+        lanes: laneGuide(s),
         major: isMajor(s.maneuver)
       };
     });
@@ -239,7 +240,8 @@
   }
 
   function inDistance(d, step) {
-    return 'In ' + geo.spokenDistance(d) + ', ' + step.text.charAt(0).toLowerCase() + step.text.slice(1);
+    return 'In ' + geo.spokenDistance(d) + ', ' + step.text.charAt(0).toLowerCase() + step.text.slice(1) +
+      (step.lanes ? '. ' + step.lanes.phrase : '');
   }
 
   function end() {
@@ -312,6 +314,53 @@
     return k + (k % 10 === 1 && k !== 11 ? 'st' : k % 10 === 2 && k !== 12 ? 'nd' : k % 10 === 3 && k !== 13 ? 'rd' : 'th');
   }
 
+  // --- Lanes ---
+  // OSRM passes along OpenStreetMap's turn lanes at the junction, left to right, marking the ones that
+  // suit the route. Coverage is patchy and sometimes contradicts itself, so guidance is offered only
+  // when every recommended lane really allows this turn and some lanes don't. Otherwise: no guess.
+
+  function laneGuide(s) {
+    var m = s.maneuver;
+    var lanes = s.intersections && s.intersections[0] && s.intersections[0].lanes;
+    if (!lanes || lanes.length < 2 || m.type === 'roundabout' || m.type === 'rotary' || m.type === 'arrive') return null;
+    var mod = m.modifier || 'straight';
+    var valid = [];
+    for (var i = 0; i < lanes.length; i++) {
+      if (!lanes[i].valid) continue;
+      if (!lanes[i].indications.some(function (ind) { return fits(ind, mod); })) return null;
+      valid.push(i);
+    }
+    if (!valid.length || valid.length === lanes.length) return null;
+    return {
+      lanes: lanes.map(function (l) { return { indications: l.indications, valid: l.valid }; }),
+      modifier: mod,
+      phrase: lanePhrase(valid, lanes.length)
+    };
+  }
+
+  function fits(ind, mod) {
+    if (ind === 'none') return true;
+    if (mod === 'uturn') return ind === 'uturn' || ind.indexOf('left') >= 0;
+    if (mod.indexOf('left') >= 0) return ind.indexOf('left') >= 0;
+    if (mod.indexOf('right') >= 0) return ind.indexOf('right') >= 0;
+    return ind === 'straight';
+  }
+
+  function lanePhrase(valid, n) {
+    var k = valid.length;
+    var first = valid[0];
+    var last = valid[k - 1];
+    if (last - first + 1 !== k) return 'Use the highlighted lanes';
+    var side = first === 0 ? 'left' : last === n - 1 ? 'right' : 'center';
+    return k === 1 ? 'Use the ' + side + ' lane' : 'Use the ' + k + ' ' + side + ' lanes';
+  }
+
+  // Lanes show up early enough to change lanes calmly: half a kilometer, or 25 seconds at speed.
+  function laneWindow() {
+    var v = lastFix && lastFix.speed > 0 ? lastFix.speed : 0;
+    return Math.max(500, v * 25);
+  }
+
   // Road name changes and "keep going straight" aren't worth a prompt.
   function isMajor(m) {
     var mod = m.modifier || '';
@@ -372,6 +421,7 @@
   FM.nav = {
     plan: plan,
     start: start,
+    laneFits: fits,
     update: update,
     end: end,
     onchange: null,
@@ -395,6 +445,7 @@
         dest: route.dest,
         step: route.next,
         toNext: route.toNext,
+        lanes: route.next.lanes && route.toNext <= laneWindow() ? route.next.lanes : null,
         then: thenStep(),
         remaining: remaining,
         secs: route.total ? route.duration * remaining / route.total : 0,
