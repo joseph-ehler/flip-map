@@ -83,16 +83,19 @@ The map is drawn on the phone from vector data (OpenFreeMap, built from OpenStre
 The routing service passes along OpenStreetMap's turn lanes at each junction (left to right, which ones suit the route). The app shows them only when the data can be trusted.
 
 - **When it shows:** the junction has at least two lanes, some lanes are not recommended, and every recommended lane really allows this turn. If any of that fails, the card shows the turn alone. It never shows a guess.
-- **Where:** one row of lane arrows under the turn, appearing about 500 m out (or 25 seconds at highway speed) and disappearing after the turn. The lanes to use are white; the others are solid gray.
+- **Where:** one row under the street name, appearing about 500 m out (or 25 seconds at highway speed) and disappearing after the turn. It also disappears the moment you leave the route.
+- **Look:** the lanes to use are solid blue tiles with white arrows, so they're marked by shape as well as color. The others are quiet gray. The lane is also named in words ("Right lane").
 - **Voice:** the early warning adds the lane: "In half a mile, turn right onto SW 34th Street. Use the right lane."
 - **Wording:** it describes lanes by position ("the left lane", "the 2 right lanes"). Phone GPS can't tell which lane you're in, so it never says "you're in the wrong lane".
+- **Tested:** [tests/lanes.test.js](tests/lanes.test.js) covers shared turn lanes, lane counts that change before the junction, missing and incomplete data, recommendations that conflict with the maneuver, and real Gainesville junctions saved from the routing service. Run `node --test tests/`.
 - **Not attempted:** drawing individual lanes on the moving map. A road's centerline and lane count aren't enough geometry to draw lanes honestly, and turn pockets and medians are mostly missing from the data.
 
 ## Turn card and camera
 
 - **Turn card:** one row of arrow, distance, and street. "Then" folds in at its right edge instead of adding a row. The lane row appears only near a junction. A simple turn takes 55 px of the 320 px screen.
 - **Camera:** you sit lower on screen as a turn approaches (80% of the free space within 300 m), a little higher on long straight stretches (66–70% beyond 1.5 km), and in between otherwise, so more road ahead shows when it matters.
-- **Color rule:** blue is for navigation (route, Go, Resume). Green means done (arrival). Red is for destructive actions and location problems.
+- **Route preview:** two quiet lines (time, distance and arrival, then the place). Each route has a time tag on the map, and the chosen one is blue. ◀ ▶ switch routes, and "‹ 1/2 ›" shows which one is chosen.
+- **Color rule:** blue is for navigation (route, Go, Resume, the lane to use). Green means done (arrival). Red is for destructive actions and location problems.
 
 ## GPS states
 

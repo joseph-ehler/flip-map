@@ -67,6 +67,7 @@
       case '2': testVoice(); break;
       case '3': testVibrate(); break;
       case '4': toggleTone(); break;
+      case '5': testMap(); break;
       default: return;
     }
     e.preventDefault();
@@ -136,17 +137,120 @@
       note('gps', 'none');
       return;
     }
+    // First fix, then 15 s of updates: how often fixes arrive sets how smoothly the map can glide.
     var t0 = Date.now();
+    var times = [];
+    var first = '';
     row('gps', 'GPS', 'waiting for a fix… (works best outside)');
-    navigator.geolocation.getCurrentPosition(function (p) {
-      var secs = Math.round((Date.now() - t0) / 1000);
-      var acc = Math.round(p.coords.accuracy);
-      row('gps', 'GPS', '±' + acc + ' m after ' + secs + ' s', true);
-      note('gps', acc + 'm/' + secs + 's');
+    var id = navigator.geolocation.watchPosition(function (p) {
+      times.push(Date.now());
+      lastFix = p.coords;
+      if (times.length === 1) {
+        var secs = Math.round((times[0] - t0) / 1000);
+        first = '±' + Math.round(p.coords.accuracy) + ' m after ' + secs + ' s';
+        note('gps', Math.round(p.coords.accuracy) + 'm/' + secs + 's');
+        row('gps', 'GPS', first + ', timing updates…', true);
+        setTimeout(function () {
+          navigator.geolocation.clearWatch(id);
+          var gaps = times.length > 1 ? (times[times.length - 1] - times[0]) / (times.length - 1) / 1000 : 0;
+          row('gps', 'GPS', first + (gaps ? ', a fix every ' + gaps.toFixed(1) + ' s' : ', no further fixes in 15 s'), gaps > 0 && gaps <= 2);
+          note('every', gaps ? gaps.toFixed(1) + 's' : 'none');
+        }, 15000);
+      }
     }, function (err) {
+      navigator.geolocation.clearWatch(id);
       row('gps', 'GPS', 'error ' + err.code + ': ' + err.message, false);
       note('gps', 'err' + err.code);
     }, { enableHighAccuracy: true, timeout: 120000, maximumAge: 0 });
+  }
+
+  // --- Map speed: load and draw real map tiles here (around you, or downtown Gainesville), then turn
+  // them for 2 s the way the app does while driving, counting frames. ---
+
+  var lastFix = null;
+
+  function testMap() {
+    if (!window.FM || !FM.carto) {
+      row('map', 'Map speed', 'map code did not load', false);
+      return;
+    }
+    row('map', 'Map speed', 'loading map data…');
+    waitFor(function () { return FM.carto.ready(); }, 10000).then(function (ready) {
+      if (!ready) {
+        row('map', 'Map speed', 'no map data (offline?)', false);
+        note('draw', 'none');
+        return;
+      }
+      var z = 16;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var center = FM.geo.project(lastFix ? lastFix.latitude : 29.6516, lastFix ? lastFix.longitude : -82.3248, z);
+      var tx0 = Math.floor(center.x / 256) - 1;
+      var ty0 = Math.floor(center.y / 256) - 1;
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;overflow:hidden;z-index:9;background:#f3f1ec';
+      var world = document.createElement('div');
+      world.style.cssText = 'position:absolute;left:50%;top:50%;width:0;height:0';
+      box.appendChild(world);
+      document.body.appendChild(box);
+      var tiles = [];
+      for (var dy = 0; dy < 3; dy++) {
+        for (var dx = 0; dx < 3; dx++) {
+          var c = document.createElement('canvas');
+          c.width = c.height = 256 * dpr;
+          c.style.cssText = 'position:absolute;width:256px;height:256px;left:' + (dx * 256 - 384) + 'px;top:' + (dy * 256 - 384) + 'px';
+          world.appendChild(c);
+          tiles.push({ c: c, x: tx0 + dx, y: ty0 + dy });
+        }
+      }
+      var drawAll = function () {
+        return Promise.all(tiles.map(function (t) {
+          return new Promise(function (res) { FM.carto.draw(t.c, z, t.x, t.y, res); });
+        }));
+      };
+      var t0 = performance.now();
+      drawAll().then(function () {
+        var load = performance.now() - t0;
+        var t1 = performance.now();
+        return drawAll().then(function () {
+          var draw = (performance.now() - t1) / tiles.length;
+          return countFrames(world).then(function (fps) {
+            document.body.removeChild(box);
+            var ms = draw < 10 ? draw.toFixed(1) : String(Math.round(draw));
+            var loaded = load < 1000 ? Math.round(load) + ' ms' : (load / 1000).toFixed(1) + ' s';
+            row('map', 'Map speed', ms + ' ms to draw a tile, ' + loaded + ' to load 9, ' + fps + ' fps while turning',
+              draw < 80 && fps >= 24);
+            note('draw', ms + 'ms');
+            note('fps', fps);
+          });
+        });
+      });
+    });
+  }
+
+  function countFrames(el) {
+    return new Promise(function (resolve) {
+      var frames = 0;
+      var start = performance.now();
+      el.style.transition = 'transform 2s linear';
+      requestAnimationFrame(function () { el.style.transform = 'rotate(90deg)'; });
+      (function tick() {
+        frames++;
+        var t = performance.now() - start;
+        if (t < 2000) requestAnimationFrame(tick);
+        else resolve(Math.round(frames / (t / 1000)));
+      })();
+    });
+  }
+
+  function waitFor(test, ms) {
+    return new Promise(function (resolve) {
+      var start = Date.now();
+      (function check() {
+        if (test()) resolve(true);
+        else if (Date.now() - start > ms) resolve(false);
+        else setTimeout(check, 200);
+      })();
+    });
   }
 
   function testVoice() {

@@ -87,6 +87,7 @@
   // --- States and sheets ---
 
   function setState(s) {
+    if (s !== state && s !== 'preview' && s !== 'nav' && s !== 'overview') map.setCallouts([]);
     state = s;
     body.setAttribute('data-state', s);
     map.setDriving(s === 'nav' || s === 'overview');
@@ -198,8 +199,9 @@
       }
       if (s.then) setHTML('then-glyph', icons.maneuver(s.then.type, s.then.modifier));
       if (s.lanes && !s.rerouting) {
-        var fits = function (ind) { return nav.laneFits(ind, s.lanes.modifier); };
-        setHTML('lanes', s.lanes.lanes.map(function (l) { return icons.lane(l.indications, l.valid, fits); }).join(''));
+        var fits = function (ind) { return FM.lanes.fits(ind, s.lanes.modifier); };
+        setHTML('lanes-arrows', s.lanes.lanes.map(function (l) { return icons.lane(l.indications, l.valid, fits); }).join(''));
+        setText('lanes-label', s.lanes.label);
       }
       show('lanes', !!s.lanes && !s.rerouting);
 
@@ -217,7 +219,7 @@
         map.setLookAhead(lookAhead(v, s.toNext));
       }
     }
-    map.setCallout(callout);
+    if (state === 'nav' || state === 'overview') map.setCallouts(callout ? [callout] : []);
     layout();
   }
 
@@ -270,6 +272,7 @@
       refreshKeys();
       layout();
       map.setRoutes(plans, 0);
+      map.setCallouts(routeTags());
       map.fit(plans.map(function (p) { return p.coords; }));
     }, function (err) {
       if (trip !== t) return;
@@ -286,7 +289,7 @@
     setText('p-name', t.dest ? t.dest.name : '');
     if (r) {
       setText('p-time', geo.formatDuration(r.duration));
-      setText('p-meta', geo.formatDistance(r.total) + ' · Arrive ' + clock(r.duration));
+      setText('p-meta', geo.formatDistance(r.total) + ' · ' + clock(r.duration, true));
     } else if (t.error) {
       setText('p-time', 'No Route');
       setText('p-meta', t.error);
@@ -294,17 +297,47 @@
       setHTML('p-time', icons.spinner);
       setText('p-meta', fix ? 'Finding routes' : 'Waiting for your location');
     }
-    var alts = '';
-    if (t.plans.length > 1) {
-      var dots = t.plans.map(function (p, i) { return '<i' + (i === t.choice ? ' class="on"' : '') + '></i>'; }).join('');
-      var extra = Math.round((r.duration - t.plans[0].duration) / 60);
-      var label = !t.choice ? 'Fastest' : extra > 0 ? '+' + extra + ' min' : 'Same time';
-      alts = '<span class="dots">' + dots + '</span><span>' + label +
-        '</span><span class="hint">‹ ›</span>';
-    }
-    setHTML('p-alts', alts);
-    show('p-alts', !!alts);
+    // With alternatives, which one is chosen ("‹ 1/2 ›"); the map shows each route's time.
+    var n = t.plans.length;
+    setText('p-alts', n > 1 ? '‹ ' + (t.choice + 1) + '/' + n + ' ›' : '');
+    show('p-alts', n > 1);
     layout();
+  }
+
+  // A time tag on each route, where it runs farthest from the others; the chosen one in blue.
+  function routeTags() {
+    return trip.plans.map(function (p, i) {
+      var at = tagSpot(p, trip.plans);
+      var extra = Math.round((p.duration - trip.plans[0].duration) / 60);
+      return {
+        lat: at[0], lon: at[1], key: 'plan' + i, priority: i === trip.choice ? 102 : 101,
+        kind: i === trip.choice ? 'route' : 'route-alt',
+        text: i && extra > 0 ? geo.formatDuration(p.duration) + ' · +' + extra : geo.formatDuration(p.duration)
+      };
+    });
+  }
+
+  function tagSpot(p, plans) {
+    var c = p.coords;
+    var others = plans.filter(function (o) { return o !== p; });
+    var best = c[Math.floor(c.length / 2)];
+    var bestGap = -1;
+    var step = Math.max(1, Math.floor(c.length / 40));
+    for (var i = Math.floor(c.length * 0.15); i < c.length * 0.85; i += step) {
+      var gap = Infinity;
+      others.forEach(function (o) {
+        var oc = o.coords;
+        var stride = Math.max(1, Math.floor(oc.length / 200));
+        for (var j = 0; j + stride < oc.length; j += stride) {
+          gap = Math.min(gap, geo.toSegment(c[i][0], c[i][1], oc[j], oc[j + stride]).dist);
+        }
+      });
+      if (others.length && gap > bestGap) {
+        bestGap = gap;
+        best = c[i];
+      }
+    }
+    return best;
   }
 
   function cycleRoute(d) {
@@ -312,6 +345,7 @@
     if (n < 2) return;
     trip.choice = (trip.choice + d + n) % n;
     map.select(trip.choice);
+    map.setCallouts(routeTags());
     renderPreview();
   }
 

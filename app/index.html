@@ -59,7 +59,7 @@
         </div>
         <div id="then" class="banner-then" hidden><span>Then</span><span id="then-glyph"></span></div>
       </div>
-      <div id="lanes" class="lanes" hidden></div>
+      <div id="lanes" class="lanes" hidden><span id="lanes-label" class="lanes-label"></span><span id="lanes-arrows" class="lanes-arrows"></span></div>
     </section>
     <div id="pill" hidden><i id="pill-dot"></i><span id="pill-text"></span></div>
   </div>
@@ -84,9 +84,12 @@
     </section>
 
     <section id="preview" class="card">
-      <div id="p-name" class="card-title clip"></div>
-      <div class="p-line"><span id="p-time" class="p-time"></span><span id="p-meta" class="card-sub clip"></span></div>
-      <div id="p-alts" class="p-alts" hidden></div>
+      <div class="p-line">
+        <span id="p-time" class="p-time"></span>
+        <span id="p-meta" class="card-sub clip"></span>
+        <span id="p-alts" class="p-alts" hidden></span>
+      </div>
+      <div id="p-name" class="p-name clip"></div>
     </section>
 
     <section id="notice" class="card" hidden>
@@ -137,6 +140,7 @@
   <script src="js/carto.js"></script>
   <script src="js/labels.js"></script>
   <script src="js/map.js"></script>
+  <script src="js/lanes.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/search.js"></script>
   <script src="js/sim.js"></script>

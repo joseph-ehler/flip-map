@@ -73,7 +73,7 @@
   var routes = [];
   var selected = 0;
   var theme = 'day';
-  var callout = null; // the street of the next turn, labeled on the map while driving
+  var callouts = []; // tags pinned to the map: next turn's street while driving, route times in preview
   var labelTimer = null;
   var lookAhead = 0.72; // while driving: your height on screen, as a share of the free space
   var labelHow = 'none';
@@ -111,6 +111,13 @@
       x: c.x + dx * Math.cos(a) - dy * Math.sin(a),
       y: c.y + dx * Math.sin(a) + dy * Math.cos(a)
     };
+  }
+
+  function fromScreen(sx, sy, f, c) {
+    var a = cam.rot * RAD;
+    var dx = (sx - c.x) / cam.scale;
+    var dy = (sy - c.y) / cam.scale;
+    return { x: f.x + dx * Math.cos(a) - dy * Math.sin(a), y: f.y + dx * Math.sin(a) + dy * Math.cos(a) };
   }
 
   function turnTo(from, to) {
@@ -171,16 +178,20 @@
       avoid.push([s.x - PUCK_CLEAR, s.y - PUCK_CLEAR, s.x + PUCK_CLEAR, s.y + PUCK_CLEAR]);
     }
     var extra = [];
-    if (callout) {
-      var cp = geo.project(callout.lat, callout.lon, 0);
-      extra.push({ kind: 'route', text: callout.text, priority: 100, minZoom: 0, x: cp.x, y: cp.y, angle: 0 });
-    }
+    callouts.forEach(function (c, i) {
+      var cp = geo.project(c.lat, c.lon, 0);
+      extra.push({
+        kind: c.kind || 'route', key: c.key || 'callout' + i, text: c.text, priority: c.priority || 100,
+        minZoom: 0, x: cp.x, y: cp.y, angle: 0
+      });
+    });
     FM.labels.layout({
       zoom: cam.zoom,
       rot: cam.rot,
       mode: driving ? 'drive' : 'explore',
       world: function (x, y) { return { x: x - ap.x, y: y - ap.y }; },
       screen: function (p) { return toScreen(p, f, c); },
+      unscreen: function (sx, sy) { return fromScreen(sx, sy, f, c); },
       w: mapEl.clientWidth,
       h: mapEl.clientHeight,
       top: insets.top,
@@ -514,11 +525,12 @@
       lookAhead = f;
     },
 
-    // { lat, lon, text } for the street of the next turn, or null.
-    setCallout: function (c) {
-      var same = c && callout && c.text === callout.text && c.lat === callout.lat;
-      if (same || (!c && !callout)) return;
-      callout = c;
+    // [{ lat, lon, text, kind ('route' | 'route-alt'), key, priority }], or [] for none.
+    setCallouts: function (list) {
+      list = list || [];
+      var sig = JSON.stringify(list);
+      if (sig === JSON.stringify(callouts)) return;
+      callouts = list;
       scheduleLabels();
     },
 

@@ -97,14 +97,14 @@
 
   function lane(indications, valid, fits) {
     var body = '';
-    var stem = false;
+    var use = false;
     indications.forEach(function (ind) {
       var on = valid && fits(ind);
-      stem = stem || on;
+      use = use || on;
       body += laneBranch(ind, on ? 'l-on' : 'l-off');
     });
-    body = path(stem ? 'l-on' : 'l-off', indications[0] === 'uturn' ? 'M16 30V18' : 'M12 30V18') + body;
-    return svg('0 0 24 32', body, 'lane');
+    body = path(use ? 'l-on' : 'l-off', indications[0] === 'uturn' ? 'M16 30V18' : 'M12 30V18') + body;
+    return svg('0 0 24 32', body, use ? 'lane use' : 'lane'); // "use": a lane to be in
   }
 
   function laneBranch(ind, cls) {

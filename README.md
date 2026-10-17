@@ -45,15 +45,16 @@ The digit keys duplicate the soft keys and D-pad because the regular KaiOS brows
 
 Do these in order. Each one answers a question the computer can't.
 
-1. **Phone check.** On the phone's browser, open `joseph-ehler.github.io/flip-map/probe.html` and allow location. Press every key once. Then press 2 for voice, 3 for vibrate, and 4 for sound. While the sound plays, close the flip and listen for whether it keeps beeping. **Write down the blue summary line** and send it back. It covers:
-   - GPS accuracy and time to first fix
+1. **Phone check.** On the phone's browser, open `joseph-ehler.github.io/flip-map/probe.html` and allow location. Wait 15 seconds while it times GPS updates. Press every key once. Then press 2 for voice, 3 for vibrate, 4 for sound, and 5 for map speed (it draws real map tiles and turns them). While the sound plays, close the flip and listen for whether it keeps beeping. **Write down the blue summary line** and send it back. It covers:
+   - GPS accuracy, time to first fix, and how often fixes arrive
+   - how fast the map draws and how smoothly it turns
    - whether there's a speech voice
    - which keys reach a web page
    - whether the screen can be kept on
    - whether Apple Music full songs are even possible (needs Widevine DRM)
 2. **Map, standing still.** Open the map outside and wait for the blue dot. Check that it's where you are.
 3. **Keys.** If the D-pad moves a mouse cursor instead of panning, use 2/4/6/8. Then look in the browser's menu for **Pin to Apps Menu**: a pinned app may get the D-pad.
-4. **A short drive with a route.** Have someone else hold the phone, or mount it. Do the turn prompts come early enough? Does the screen stay on? Does the dot keep up?
+4. **A short drive with a route.** Have someone else hold the phone, or mount it. Do the turn prompts come early enough? Does lane advice (where it appears) come early enough to change lanes calmly? Does the screen stay on? Does the dot keep up? Is it readable in sunlight?
 
 ## Try it on the computer
 
@@ -62,6 +63,14 @@ npx http-server app -p 8417 -c-1
 ```
 
 Open `http://localhost:8417/index.html?sim`. `?sim` fakes a drive around downtown Chicago. `?sim=29.652,-82.325` starts anywhere else (that one is downtown Gainesville). Search for a nearby place and it drives the route at 30 mph. Press 0 to swerve off the route and watch it reroute. `-c-1` turns off caching so edits show up on reload.
+
+## Tests
+
+```bash
+node --test tests/
+```
+
+Lane guidance is the one place a mistake could change how someone drives, so it has its own tests, including real Gainesville junctions saved from the routing service.
 
 ## Getting it onto the phone
 
@@ -113,6 +122,7 @@ To switch providers, change the constant at the top of [carto.js](app/js/carto.j
 | [js/mvt.js](app/js/mvt.js) | Decodes vector map tiles |
 | [js/carto.js](app/js/carto.js) | Flip Cartography: draws the map in our day/night, explore/drive styles |
 | [js/labels.js](app/js/labels.js) | Places upright street and place names without overlaps |
+| [js/lanes.js](app/js/lanes.js) | Decides lane guidance, or stays silent (tested in [tests/](tests/)) |
 | [js/icons.js](app/js/icons.js) | Turn arrows and interface icons |
 | [js/nav.js](app/js/nav.js) | Gets routes, tracks progress, speaks turns, reroutes |
 | [js/search.js](app/js/search.js) | Search screen and recent places |

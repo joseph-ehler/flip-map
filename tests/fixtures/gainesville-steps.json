@@ -1,0 +1,328 @@
+{
+ "source": "OSRM demo server, Gainesville FL, Oct 2026. Map data (c) OpenStreetMap contributors, ODbL.",
+ "steps": [
+  {
+   "name": "Blue Circle",
+   "maneuver": {
+    "type": "depart",
+    "modifier": "left"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "Orange Drive",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "Hull Road",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "Southwest 34th Street",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": false,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "straight"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "straight"
+       ]
+      },
+      {
+       "valid": true,
+       "indications": [
+        "right"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Northwest 34th Street",
+   "maneuver": {
+    "type": "new name",
+    "modifier": "straight"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": true,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": true,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": true,
+       "indications": [
+        "none"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "right"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Northwest 16th Boulevard",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "left"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": true,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": true,
+       "indications": [
+        "straight",
+        "right"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Northwest 43rd Street",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "Northwest 43rd Street",
+   "maneuver": {
+    "type": "arrive",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "South Main Street",
+   "maneuver": {
+    "type": "depart",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "West University Avenue",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "left"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": true,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "none"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Newberry Road",
+   "maneuver": {
+    "type": "new name",
+    "modifier": "straight"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "Northwest 62nd Street",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "left"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": true,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "straight"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "straight"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "straight"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": false,
+       "indications": [
+        "straight"
+       ]
+      },
+      {
+       "valid": true,
+       "indications": [
+        "right"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "left"
+   },
+   "intersections": [
+    {
+     "lanes": [
+      {
+       "valid": true,
+       "indications": [
+        "left"
+       ]
+      },
+      {
+       "valid": false,
+       "indications": [
+        "straight",
+        "right"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "",
+   "maneuver": {
+    "type": "fork",
+    "modifier": "slight left"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "",
+   "maneuver": {
+    "type": "turn",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  },
+  {
+   "name": "",
+   "maneuver": {
+    "type": "arrive",
+    "modifier": "right"
+   },
+   "intersections": [
+    {}
+   ]
+  }
+ ]
+}

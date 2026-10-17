@@ -10,10 +10,13 @@
     road: '600 11px Inter, sans-serif',
     place: '600 11.5px Inter, sans-serif',
     'place big': '700 13px Inter, sans-serif',
-    route: '700 11.5px Inter, sans-serif'
+    route: '700 11.5px Inter, sans-serif',
+    'route-alt': '700 11.5px Inter, sans-serif'
   };
-  var PAD = { road: [4, 6], place: [4, 6], 'place big': [4, 6], route: [14, 9] }; // extra [width, height]
+  var PAD = { road: [4, 6], place: [4, 6], 'place big': [4, 6], route: [14, 9], 'route-alt': [14, 9] }; // extra [width, height]
   var GAP = 4;
+  // Route tags may sit just off their spot (above, below, beside) rather than not show at all.
+  var TAG_NUDGES = [[0, 0], [0, -17], [0, 17], [-34, 0], [34, 0]];
   var FADE_MS = 220;
 
   var layer = document.getElementById('labels');
@@ -60,10 +63,11 @@
     var count = 0;
     for (var i = 0; i < cands.length && count < LIMIT[v.mode]; i++) {
       var c = cands[i];
-      if (v.zoom < c.minZoom || used[c.text]) continue;
-      if (drive && c.kind !== 'road' && c.kind !== 'route') continue;
+      var tag = c.kind.indexOf('route') === 0;
+      if (v.zoom < c.minZoom || (used[c.text] && !tag)) continue;
+      if (drive && c.kind !== 'road' && !tag) continue;
       var w = v.world(c.x * scale, c.y * scale);
-      var s = v.screen(w);
+      var s0 = v.screen(w);
       var a = c.kind === 'road' ? readable(c.angle - v.rot) : 0;
       var pad = PAD[c.kind];
       var tw = textWidth(c.kind, c.text) + pad[0];
@@ -71,13 +75,21 @@
       var r = a * Math.PI / 180;
       var bw = Math.abs(tw * Math.cos(r)) + Math.abs(th * Math.sin(r));
       var bh = Math.abs(tw * Math.sin(r)) + Math.abs(th * Math.cos(r));
-      var box = [s.x - bw / 2 - GAP, s.y - bh / 2 - GAP, s.x + bw / 2 + GAP, s.y + bh / 2 + GAP];
-      if (box[0] < 0 || box[2] > v.w || box[1] < v.top || box[3] > v.h - v.bottom) continue;
-      if (overlaps(box, placed)) continue;
+      var box = null;
+      var nudges = tag ? TAG_NUDGES : [[0, 0]];
+      for (var n = 0; n < nudges.length && !box; n++) {
+        var sx = s0.x + nudges[n][0];
+        var sy = s0.y + nudges[n][1];
+        var b = [sx - bw / 2 - GAP, sy - bh / 2 - GAP, sx + bw / 2 + GAP, sy + bh / 2 + GAP];
+        if (b[0] < 0 || b[2] > v.w || b[1] < v.top || b[3] > v.h - v.bottom || overlaps(b, placed)) continue;
+        box = b;
+        if (n) w = v.unscreen(sx, sy);
+      }
+      if (!box) continue;
       placed.push(box);
       used[c.text] = true;
       count++;
-      keep[c.kind + '|' + c.text] = { c: c, w: w, a: a };
+      keep[c.key || c.kind + '|' + c.text] = { c: c, w: w, a: a };
     }
     render(keep, v);
   }
@@ -89,10 +101,12 @@
       var fresh = !el;
       if (fresh) {
         el = shown[key] = document.createElement('div');
-        el.className = 'label ' + k.c.kind;
-        el.textContent = k.c.text;
         layer.appendChild(el);
       }
+      if (el.className.replace(' on', '').replace(' leaving', '') !== 'label ' + k.c.kind) {
+        el.className = 'label ' + k.c.kind + (fresh ? '' : ' on');
+      }
+      if (el.textContent !== k.c.text) el.textContent = k.c.text;
       // A label whose reading direction flips turns instantly rather than spinning.
       var flip = !fresh && Math.abs(k.a - el.fmA) > 90;
       el.fmA = k.a;
