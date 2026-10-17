@@ -69,7 +69,14 @@ No code changes until this is done. Each step answers a question the computer ca
    - "Screen off" shows whether GPS fixes arrived and prompts finished while the flip was closed. Zero of both, *with a turn due*, strongly suggests the browser suspends the page. That is a limit of the browser tab, not necessarily of an installed KaiOS app.
    - If the map stuttered, turn on More > Reduce Motion, drive a little more, and note whether it helps.
 
-What the results decide: the next round goes to whichever of these failed first. That's background running (packaging as an installed KaiOS app), performance, navigation accuracy, or keypad interaction.
+What the results decide: rank failures by consequence, not by which happened first.
+
+- **Changes the plan:** no English voice, no GPS or prompts with the flip closed, or the dot not following the right road. These decide how Flip Map is delivered: browser tab, installed KaiOS app, or "works with the flip open".
+- **Calls for tuning:** stutter, slow keys, small text, awkward keypad moments. Targeted fixes within the current design.
+
+Then, in order: compare with an installed (packaged) app, which may get different permissions, audio, and background behavior than a browser tab, even running the same code. After that, decide on a backend, adding only the services the measurements justify.
+
+The build being tested is tagged `hw-baseline-1` in git, with its configuration in the tag message, so later changes can be compared against it.
 
 Optional, if you're curious: dial `*#*333284#*#*` to turn on developer mode, install the Android tools on the Mac (`brew install android-platform-tools`), connect by USB, and run `adb devices`. If the phone is listed, installing Flip Map as a real app becomes possible to try. If not, the KaiStore test-device route is the next option.
 
