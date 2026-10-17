@@ -39,6 +39,8 @@ It tests `main` at `614c798` (the live build) and the `audit/nav-engine` fixes. 
 
 The 8 failures come from 7 root causes, listed below. The same tests fail on `audit/nav-engine`: none of its fixes cover these.
 
+A review of where the two audits' fixes meet found one more defect: `audit/nav-engine` turns a slow route answer into extra reroutes. It's fixed here; see [Where the two audits meet](#where-the-two-audits-meet).
+
 The [compatibility check](../devtools/compat/check.spec.js) against the live services still passes with the fixes (5 of 5), including the phone check's map-speed test.
 
 ### Confirmed defects: 8 failing tests, 7 root causes
@@ -57,6 +59,7 @@ The [compatibility check](../devtools/compat/check.spec.js) against the live ser
 ### The fixes (branch only, not merged)
 
 - **Route requests belong to their trip** (`nav.js`): each request is numbered. Starting or ending a trip lets any request still out go, so its answer, error or spinner can't reach the next trip.
+- **A slow route answer is matched as of when it was asked** (`nav.js`): see [Where the two audits meet](#where-the-two-audits-meet).
 - **Map data has a time limit** (`carto.js`, `net.js`):
   - Tiles and the map's data address now give up after 15 s, through the same helper routing and search use (`FM.net.getBytes`, `FM.net.getJSON`).
   - A tile that gives up is retried by the existing rules.
@@ -66,7 +69,7 @@ The [compatibility check](../devtools/compat/check.spec.js) against the live ser
 - **Drive Report** (`report.js`, `app.js`): the frame sampler restarts when the app reopens mid-trip. Opening with no trip to resume closes the report at its last fix.
 - **End Route** (`app.js`): does nothing once the trip has already ended.
 
-The Node tests from the first audit still pass with these changes (36 pass, plus 1 recorded as a todo).
+The Node tests from the first audit still pass with these changes. With the interaction tests below, that's 43 pass, plus 1 recorded as a todo.
 
 ### Behavior changes to review before merging
 
@@ -92,6 +95,35 @@ These pass on `main` and on this branch:
 | Offline mid-trip, off the route | **Holds.** It says "No connection", then reroutes once back online |
 | A reroute answer arriving after End Route | **Holds.** It doesn't restart the trip |
 | Phone Check in the middle of a trip, then Back | **Holds.** The trip carries on |
+
+## Where the two audits meet
+
+Before merging, I reviewed where the two audits' fixes interact: request time limits and request numbering (this branch), plausible GPS matching (`audit/nav-engine`), trip identity, and resuming a saved trip. Each fix passed its own tests; [tests/interactions.test.js](../tests/interactions.test.js) checks them together, in the Node harness, against all three versions:
+
+| Scenario | `main` | `audit/nav-engine` | This branch |
+|---|---|---|---|
+| A saved trip takes 10 s to resume while you drive on at 30 m/s | Pass | **Fail:** 3 extra reroutes | Pass |
+| A reroute takes 10 s to answer while you drive the new way | Pass | **Fail:** 2 extra reroutes | Pass |
+| A route request times out, and the retry answers in 8 s while you drive on | **Fail:** the hung request is never retried | Pass | Pass |
+| A stray fix by the destination right after a slow resume | **Fail:** false arrival | Pass | Pass |
+| Arriving while a reroute loads; its answer comes after | Pass | Pass | Pass |
+| Starting a new trip while a saved trip resumes | **Fail:** "Rerouting" on the new trip | **Fail:** same | Pass |
+| A reroute answered just before you reach the destination | Pass | Pass | Pass |
+
+`main`'s three failures are defects the audits already fixed. The new finding is the first two rows, an interaction defect in `audit/nav-engine`:
+
+- **What happens:** a route answer that arrives after a few seconds is matched at the position it was asked from, but timed as if it were taken when the answer arrived. Plausible matching then measures how far you could have driven from the wrong moment. The next fixes, already a few hundred meters on, look implausible and count as off the route.
+- **What follows:** at highway speed, an answer taking 7 s or more brings a needless reroute. Its answer is just as slow, so it repeats. Guidance stands still meanwhile.
+- **How likely:** OSRM usually answers in under 2 s, but slower answers happen on a weak signal. That's exactly when a phone is resuming a trip or rerouting. `main` doesn't have this, because it matches against the whole route.
+- **Fix (`nav.js`, this branch):** a route answer is matched as of when it was asked for, so the plausible window grows by the time the answer took. The stray-fix protection still holds: row 4 passes.
+
+**Checked by reading, and holding:**
+- **OK key:** the duplicate-OK filter runs before the held-key filter, so a held `MicrophoneToggle` acts once.
+- **Search:** the result-focus rule only ever sees the latest search's answer.
+- **Time limits:** map data and routing use the same time-limit helper, with separate timers.
+- **Drive Report:** a trip still waiting to resume counts as a trip, so reopening mid-trip keeps its report.
+
+**Noted, not changed:** after a slow reroute, the first spoken distance ("In half a mile…") is measured from where the reroute was asked. It's off by the distance driven while waiting, and the banner corrects itself on the next fix. `main` does the same.
 
 ## Long drive
 
@@ -134,6 +166,8 @@ These pass on `main` and on this branch:
 
 \* The Chromium run also counted the sheets' contents. Its count rose once, by about 60, when Settings was first built at 41 minutes, and stayed there.
 
+After the slow-answer fix ([Where the two audits meet](#where-the-two-audits-meet)), the drive was run again at 16× with the same results: arrived once, 3 reroutes, 47 prompts, no errors, nothing growing.
+
 `main` in Firefox drove the same way: arrived once, 3 reroutes, 47 prompts, flat listeners and timers, 0.9–1.9 ms per fix. The long drive doesn't trip over the defects above, because nothing in it hangs or reloads.
 
 **What it shows:**
@@ -156,6 +190,6 @@ These pass on `main` and on this branch:
 
 1. **Keep Monday's plan:** drive the live build (`main`) as planned.
    - Only defect 6 touches Monday's measurements: if the page reloads mid-drive, the Drive Report's frame numbers stop at the reload. The fix is small and diagnostic-only.
-2. **After Monday,** merge this branch. It contains `audit/nav-engine`, so one merge brings both sets of fixes.
+2. **After Monday,** merge this branch, not `audit/nav-engine` on its own: that one carries the slow-answer interaction defect, which only this branch fixes. This branch contains `audit/nav-engine`, so one merge brings both sets of fixes.
    - Then re-run `npm run audit` and `npm run check`, and compare a Drive Report from the new build with Monday's.
 3. **Then:** replay GPS traces recorded on the phone through the long-drive harness, in place of the synthetic drive. Settle offline caching on the phone itself.
