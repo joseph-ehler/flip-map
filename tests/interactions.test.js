@@ -127,3 +127,71 @@ test('a reroute answered just before you reach the destination: arrival is still
   await H.feed(w, Array.from({ length: 3 }, () => H.fix([0, 700], { speed: 0 }))); // parked at the end
   assert.strictEqual(w.arrived.length, 1, 'arrivals within 3 s of parking at the destination');
 });
+
+// --- A slow route answer while you drive past its first turn ---
+//
+// The new way from where the route was asked: 150 m on, turn left onto Street 2 (A), 2.4 km on, turn
+// left onto Street 3 (B), then the destination. At 30 m/s, a 10 s answer arrives after you've passed A.
+
+function newWay(from, to) {
+  return [from, [from[0] + 150, from[1]], [from[0] + 150, to[1]], to];
+}
+
+const TURN_A = 'Turn left onto Street 2';
+
+// Leave route L (north along x = 0) eastward at 30 m/s until a reroute is asked for.
+async function leaveForReroute(w, L) {
+  await H.startTrip(w, L);
+  await H.feed(w, H.drive([[0, 0], [0, 600]], { speed: 30 }).slice(0, 20));
+  const off = H.drive([[0, 600], [3000, 600]], { speed: 30 });
+  for (let i = 0; w.calls.length < 2 && i < off.length; i++) await H.feed(w, [off[i]]);
+  assert.strictEqual(w.calls.length, 2, 'a reroute was asked for');
+  return newWay(w.calls[1].from, w.calls[1].to);
+}
+
+// Drive `way` from the request onward; returns what was said and the states seen.
+async function driveTheNewWay(w, way, seconds) {
+  const before = w.spoken.length;
+  const states = [];
+  await H.feed(w, H.drive(way, { speed: 30 }).slice(1, seconds + 1), s => states.push(s));
+  return { said: w.spoken.slice(before).map(x => x.text), states };
+}
+
+test('a 10 s reroute while you drive past its first turn: nothing is said about the turn behind you', async t => {
+  const L = [[0, 0], [0, 3000]];
+  const w = H.load(req => (req.n === 1 ? { body: H.osrmRoute(L) } : { delay: 10000, body: H.osrmRoute(newWay(req.from, req.to)) }));
+  t.after(() => w.close());
+  const way = await leaveForReroute(w, L);
+  const { said, states } = await driveTheNewWay(w, way, 25);
+  assert.deepStrictEqual(said.filter(x => /Street 2/.test(x)), [], 'prompts about the turn already passed');
+  assert.ok(said.some(x => /Street 3/.test(x)), 'the new route\'s next turn was announced: ' + JSON.stringify(said));
+  const on = states.filter(s => s.mode === 'on' && !s.rerouting);
+  assert.ok(on.length > 10, 'following the new route');
+  assert.ok(on.every(s => /Street 3/.test(s.step.text)), 'the banner showed a turn already passed');
+  assert.ok(on.every((s, i) => i === 0 || s.remaining <= on[i - 1].remaining), 'distance left went back up');
+  assert.strictEqual(w.calls.length, 2, 'route requests after the reroute answered: ' + (w.calls.length - 2) + ' more');
+});
+
+test('a 4 s reroute that lands just before its first turn: "turn now" is said once', async t => {
+  const L = [[0, 0], [0, 3000]];
+  const w = H.load(req => (req.n === 1 ? { body: H.osrmRoute(L) } : { delay: 4000, body: H.osrmRoute(newWay(req.from, req.to)) }));
+  t.after(() => w.close());
+  const way = await leaveForReroute(w, L);
+  const { said } = await driveTheNewWay(w, way, 15);
+  assert.strictEqual(said.filter(x => x === TURN_A).length, 1, '"turn now" for the first turn: ' + JSON.stringify(said));
+});
+
+test('a saved trip that takes 10 s to resume while you drive past its first turn: nothing about the turn behind you', async t => {
+  const END = [0, 3000];
+  const w = H.load(req => ({ delay: 10000, body: H.osrmRoute(newWay(req.from, req.to)) }), { storage: savedTrip(END) });
+  t.after(() => w.close());
+  const way = newWay([0, 0], END);
+  const before = w.spoken.length;
+  const states = [];
+  await H.feed(w, H.drive(way, { speed: 30 }).slice(0, 25), s => states.push(s));
+  const said = w.spoken.slice(before).map(x => x.text);
+  assert.deepStrictEqual(said.filter(x => /Street 2/.test(x)), [], 'prompts about the turn already passed');
+  const on = states.filter(s => s.mode === 'on');
+  assert.ok(on.length > 10 && on.every(s => /Street 3/.test(s.step.text)), 'the banner showed a turn already passed');
+  assert.strictEqual(w.calls.length, 1, 'route requests (1 = only the resume): ' + w.calls.length);
+});

@@ -84,12 +84,11 @@
         pending = null;
         offCount = 0;
         lastError = '';
-        if (!isReroute) say('Resuming route. ' + route.steps[0].text, false);
-        track(from, at);
-        if (isReroute && route) {
-          route.said[route.next.i] = 1;
-          say(inDistance(route.toNext, route.next), false);
-        }
+        // Match where we asked from, as of then, and then where we are now, saying nothing yet: an
+        // answer that took a while may describe road we've already driven, turns and all.
+        track(from, at, true);
+        if (route && lastFix && lastFix !== from) track(lastFix, 0, true);
+        if (route) introduce(route, isReroute, (lastFix || from).speed);
       })
       .catch(function (err) {
         if (ask !== asked) return;
@@ -169,9 +168,26 @@
     }
   }
 
+  // A new route from here (a reroute, or a saved trip picked back up): say what's next from where we
+  // are now. Just setting off, which way to head; otherwise the next turn, unless it's due right away,
+  // which announce() says as "turn now".
+  function introduce(r, isReroute, speed) {
+    var lead = isReroute ? '' : 'Resuming route. ';
+    if (!isReroute && r.progress < ARRIVE_M) {
+      say(lead + r.steps[0].text, false);
+    } else if (!r.said[r.next.i] && r.toNext > nearM(speed)) {
+      r.said[r.next.i] = 1;
+      say(lead + inDistance(r.toNext, r.next), false);
+    } else if (lead) {
+      say(lead.trim(), false);
+    }
+    announce(r.next, r.toNext, speed);
+  }
+
   // `at`: when the fix was taken, if not just now. A route that took a while to arrive is matched
   // against where we asked from, as of then, so the next fix may plausibly be that much farther on.
-  function track(fix, at) {
+  // `quiet`: follow the route without announcing anything (introduce() speaks once we're placed).
+  function track(fix, at, quiet) {
     var now = at || Date.now();
     var m = match(fix, now);
     var c = route.coords;
@@ -209,7 +225,7 @@
 
     route.next = nextStep(m.progress);
     route.toNext = route.next.at - m.progress;
-    announce(route.next, route.toNext, fix.speed);
+    if (!quiet) announce(route.next, route.toNext, fix.speed);
   }
 
   // Snap a position to the nearest point on the stretch of route we could plausibly have reached:
@@ -277,7 +293,7 @@
   // Two prompts per turn: an early warning, then "turn now" (with a buzz). Both scale with speed.
   function announce(step, d, speed) {
     var v = Math.max(speed || 0, 8);
-    var near = Math.max(40, v * 6);
+    var near = nearM(speed);
     var far = Math.max(300, v * 25);
     var said = route.said[step.i] || 0;
     if (said < 2 && d <= near) {
@@ -287,6 +303,11 @@
       route.said[step.i] = 1;
       say(inDistance(d, step), false);
     }
+  }
+
+  // How close "turn now" is said: 6 seconds out, and never under 40 m.
+  function nearM(speed) {
+    return Math.max(40, Math.max(speed || 0, 8) * 6);
   }
 
   function inDistance(d, step) {
