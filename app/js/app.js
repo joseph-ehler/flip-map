@@ -500,6 +500,8 @@
         act: cycleAppearance },
       { icon: 'rotate', tint: 'orange', label: 'Rotate Map', on: function () { return prefs.rotate; },
         act: toggleRotate },
+      { icon: 'motion', tint: 'blue', label: 'Reduce Motion', on: function () { return prefs.still; },
+        act: toggleStill },
       null,
       { icon: 'gauge', tint: 'gray', label: 'Drive Report', link: true, act: openReport },
       { icon: 'check', tint: 'gray', label: 'Phone Check', link: true,
@@ -587,10 +589,23 @@
     applyTheme();
   }
 
+  // Jumps instead of glides: for phones that stutter, or people who prefer it.
+  function toggleStill() {
+    prefs.still = !prefs.still;
+    savePrefs();
+    applyMotion();
+  }
+
+  function applyMotion() {
+    map.setStill(prefs.still);
+    body.classList.toggle('still', prefs.still);
+  }
+
   function toggleRotate() {
     prefs.rotate = !prefs.rotate;
     savePrefs();
     map.setRotate(prefs.rotate);
+  applyMotion();
   }
 
   function loadPrefs() {
@@ -601,7 +616,8 @@
     p = p || {};
     return {
       appearance: APPEARANCES.indexOf(p.appearance) >= 0 ? p.appearance : 'auto',
-      rotate: p.rotate !== false
+      rotate: p.rotate !== false,
+      still: p.still === true
     };
   }
 
@@ -775,7 +791,6 @@
           li.innerHTML = '<span class="row-label clip"></span><span class="value"></span>';
           li.firstChild.textContent = row[0];
           li.lastChild.textContent = row[1];
-          if (row[2] !== null) li.lastChild.className = 'value ' + (row[2] ? 'good' : 'poor');
           ul.appendChild(li);
         });
         body.appendChild(ul);
@@ -875,8 +890,13 @@
 
   // --- Start ---
 
+  // Coming back (flip opened, app in front again): screen-on again, and if GPS went quiet while
+  // hidden, start it afresh rather than trust a watch the browser may have dropped.
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) keepScreenOn();
+    if (document.hidden) return;
+    keepScreenOn();
+    if (!sim.enabled && (!fix || Date.now() - fix.time > STALE_MS)) watchGps();
+    renderStatus();
   });
   window.addEventListener('online', renderStatus);
   window.addEventListener('offline', renderStatus);

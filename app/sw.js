@@ -1,7 +1,7 @@
 'use strict';
 
 // Lets the app open with no data connection and keeps the map tiles you've already seen.
-var SHELL = 'flipmap-shell-v6';
+var SHELL = 'flipmap-shell-v7';
 var VECTOR = 'flipmap-vector-v1';
 var MAX_VECTOR = 600; // roughly 30-60 MB: a city and the roads around it
 var TILES = 'flipmap-tiles-v1';

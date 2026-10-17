@@ -647,8 +647,7 @@ body {
 .group.report li { min-height: 34px; font-size: 13px; }
 .group.report li + li::before { left: 10px; }
 .group.report .value { flex: 0 0 auto; max-width: 62%; text-align: right; font-variant-numeric: tabular-nums; }
-.value.good { color: var(--green); }
-.value.poor { color: var(--orange); }
+
 .group li.danger:focus { background: var(--red); color: #ffffff; }
 
 .switch {
@@ -711,6 +710,15 @@ body {
 @keyframes sheet-out { to { transform: translateY(100%); } }
 @keyframes pulse { 50% { opacity: 0.25; transform: scale(0.7); } }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Reduce Motion (More): the same as the system setting, for phones that stutter. */
+.still *,
+.still *::before,
+.still *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition: none !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

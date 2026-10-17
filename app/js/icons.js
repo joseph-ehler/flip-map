@@ -149,6 +149,7 @@
     rotate: path('i-f', 'M12 2.8l6.8 17.6-6.8-3.9-6.8 3.9z'),
     check: path('i-s i-bold', 'M5.5 12.5l4.2 4.2L18.5 7.5'),
     gauge: path('i-s', 'M4.5 16.5a7.5 7.5 0 1 1 15 0') + path('i-s i-bold', 'M12 16.5l3.6-4.6'),
+    motion: path('i-s i-bold', 'M4 8h8M4 12h16M4 16h11'),
     chevron: path('i-s', 'M9.5 5.5L16 12l-6.5 6.5')
   };
 

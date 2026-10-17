@@ -1,7 +1,8 @@
 // Drive report: what the phone actually did during a trip, for judging it on real hardware.
-// GPS rhythm, frame pacing (sampled briefly, so it costs little), key response, spoken prompts,
-// reroutes, battery. Kept between launches so a passenger can read it back afterwards
-// (More > Drive Report).
+// GPS rhythm and accuracy spread, what kept working with the screen off (flip closed), frame pacing
+// (sampled briefly, so it costs little), key response, voice prompts, reroutes, battery. It reports
+// and doesn't judge: we don't yet know what "good" is on this phone. Kept between launches so a
+// passenger can read it back afterwards (More > Drive Report).
 (function (FM) {
   'use strict';
 
@@ -10,6 +11,7 @@
   var SAMPLE_MS = 3000; // for how long
   var SLOW_FRAME_MS = 50; // slower than this is a visible hitch
   var SAVE_EVERY = 10; // fixes between saves
+  var POOR_FIX_M = 20; // a fix this vague can't reliably tell neighboring roads apart
 
   var r = load();
   var lastFixAt = 0;
@@ -19,7 +21,8 @@
   function start(dest) {
     r = {
       dest: dest.name, started: Date.now(), ended: 0,
-      fixes: 0, gapSum: 0, gapMax: 0, accSum: 0,
+      fixes: 0, gapSum: 0, gapMax: 0, accSum: 0, accMax: 0, accPoor: 0,
+      hiddenMs: 0, hiddenSince: document.hidden ? Date.now() : 0, hiddenFixes: 0, hiddenSpoken: 0,
       frames: 0, slow: 0, worst: 0,
       keys: 0, keySum: 0, keyMax: 0,
       spoken: 0, voiceErrors: 0, reroutes: 0,
@@ -37,6 +40,8 @@
     if (!r || r.ended) return;
     clearInterval(timer);
     r.ended = Date.now();
+    if (r.hiddenSince) r.hiddenMs += r.ended - r.hiddenSince;
+    r.hiddenSince = 0;
     readBattery(function (b) { r.battery1 = b; save(); });
     save();
   }
@@ -56,6 +61,9 @@
     lastFixAt = now;
     r.fixes++;
     r.accSum += f.accuracy || 0;
+    r.accMax = Math.max(r.accMax || 0, f.accuracy || 0);
+    if (f.accuracy > POOR_FIX_M) r.accPoor++;
+    if (document.hidden) r.hiddenFixes++;
     if (r.fixes % SAVE_EVERY === 0) save();
   }
 
@@ -91,11 +99,25 @@
     })();
   }
 
+  // ok: the speech engine says it finished. Whether anyone heard it is for the passenger to say.
   function spoke(ok) {
     if (!active()) return;
     if (ok) r.spoken++;
     else r.voiceErrors++;
+    if (ok && document.hidden) r.hiddenSpoken++;
   }
+
+  // Screen off (flip closed, or another app in front): does GPS keep arriving, does the voice go on?
+  document.addEventListener('visibilitychange', function () {
+    if (!active()) return;
+    if (document.hidden) {
+      r.hiddenSince = Date.now();
+    } else if (r.hiddenSince) {
+      r.hiddenMs += Date.now() - r.hiddenSince;
+      r.hiddenSince = 0;
+    }
+    save();
+  });
 
   function reroute() {
     if (active()) r.reroutes++;
@@ -113,41 +135,61 @@
     done(null);
   }
 
-  // [label, value, good?] rows for the report sheet; good is true, false, or null (no judgment).
+  // { title, groups: [[[label, value], ...], ...] } for the report sheet.
   function rows(cb) {
     if (!r) return cb(null);
     readBattery(function (now) {
       var end = r.ended || Date.now();
       var mins = (end - r.started) / 60000;
       var every = r.fixes > 1 ? r.gapSum / (r.fixes - 1) / 1000 : 0;
-      var slowPct = r.frames ? r.slow / r.frames * 100 : 0;
       var keyAvg = r.keys ? r.keySum / r.keys : 0;
       var bEnd = r.ended ? r.battery1 : now;
       var used = r.battery0 !== null && bEnd !== null ? r.battery0 - bEnd : null;
+      var hiddenMs = (r.hiddenMs || 0) + (r.hiddenSince ? end - r.hiddenSince : 0);
+      var pct = function (n, of) { return of ? Math.round(n / of * 100) + '%' : '–'; };
+
+      var screenOff = hiddenMs < 1000
+        ? [['Screen off', 'never during this trip']]
+        : [
+          ['Screen off', fmtMins(hiddenMs / 60000)],
+          ['GPS fixes while off', String(r.hiddenFixes || 0)],
+          ['Prompts finished while off', String(r.hiddenSpoken || 0)]
+        ];
+
       cb({
         title: r.dest + (r.ended ? '' : ' (driving)'),
         groups: [
           [
-            ['Trip', Math.max(1, Math.round(mins)) + ' min', null],
-            ['Reroutes', String(r.reroutes), null]
+            ['Trip', fmtMins(mins)],
+            ['Reroutes', String(r.reroutes)]
           ],
           [
-            ['GPS fixes', r.fixes + (every ? ', one every ' + every.toFixed(1) + ' s' : ''), every ? every <= 2 : null],
-            ['Longest gap', (r.gapMax / 1000).toFixed(1) + ' s', r.fixes > 1 ? r.gapMax <= 5000 : null],
-            ['Accuracy', r.fixes ? '±' + Math.round(r.accSum / r.fixes) + ' m average' : '–', r.fixes ? r.accSum / r.fixes <= 25 : null]
+            ['GPS fixes', r.fixes + (every ? ', one every ' + every.toFixed(1) + ' s' : '')],
+            ['Longest gap', (r.gapMax / 1000).toFixed(1) + ' s'],
+            ['Accuracy', r.fixes ? '±' + Math.round(r.accSum / r.fixes) + ' m avg, worst ±' + Math.round(r.accMax || 0) + ' m' : '–'],
+            ['Fixes vaguer than ' + POOR_FIX_M + ' m', pct(r.accPoor || 0, r.fixes)]
+          ],
+          screenOff,
+          [
+            ['Slow frames (over 50 ms)', r.frames ? (r.slow / r.frames * 100).toFixed(1) + '% of ' + r.frames : 'not sampled yet'],
+            ['Worst frame', r.frames ? Math.round(r.worst) + ' ms' : '–'],
+            ['Key response', r.keys ? Math.round(keyAvg) + ' ms avg, slowest ' + Math.round(r.keyMax) : 'no keys pressed']
           ],
           [
-            ['Slow frames', r.frames ? slowPct.toFixed(1) + '% of ' + r.frames : 'not sampled yet', r.frames ? slowPct < 5 : null],
-            ['Worst frame', r.frames ? Math.round(r.worst) + ' ms' : '–', r.frames ? r.worst < 250 : null],
-            ['Key response', r.keys ? Math.round(keyAvg) + ' ms (slowest ' + Math.round(r.keyMax) + ')' : 'no keys pressed', r.keys ? keyAvg < 120 : null]
+            ['Prompts the phone played', String(r.spoken)],
+            ['Prompts that failed', String(r.voiceErrors)],
+            ['Heard them all?', 'ask your passenger']
           ],
           [
-            ['Spoken prompts', r.spoken + (r.voiceErrors ? ', ' + r.voiceErrors + ' failed' : ''), r.spoken + r.voiceErrors ? !r.voiceErrors : null],
-            ['Battery used', used === null ? 'not reported by phone' : used + '% (' + (mins >= 5 ? Math.round(used / mins * 60) + '%/hour' : 'short trip') + ')', null]
+            ['Battery used', used === null ? 'not reported by phone' : used + '%' + (mins >= 5 ? ' (' + Math.round(used / mins * 60) + '% per hour)' : '')]
           ]
         ]
       });
     });
+  }
+
+  function fmtMins(m) {
+    return m < 1 ? Math.max(1, Math.round(m * 60)) + ' s' : Math.round(m) + ' min';
   }
 
   function load() {

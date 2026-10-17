@@ -114,18 +114,21 @@ The routing service passes along OpenStreetMap's turn lanes at each junction (le
 
 ## Judged on the phone, not the desktop
 
-Peak frame rate on a Mac means nothing for the Flip. These are the measures, and where they show up:
+Peak frame rate on a Mac means nothing for the Flip. These are the measures. The "watch for" column is a starting guess: we'll set real expectations once we've seen what this phone does.
 
-| Measure | Good | Where |
+| Measure | Watch for | Where |
 |---|---|---|
-| Tile drawing | under 80 ms per tile | Phone check, key 5 |
-| Frame pacing while the map turns | under 5% of frames slower than 50 ms, worst under 250 ms | Phone check, key 5; Drive Report |
-| GPS rhythm | a fix at least every 2 s; longest gap under 5 s | Phone check, key 1; Drive Report |
-| Key response | under 120 ms from press to paint | Drive Report |
-| Spoken prompts | none failed; still speaking with the flip closed | Drive Report; listen |
+| Works with the flip closed | GPS fixes and finished prompts while the screen was off. Zero means the browser suspends the page, and navigation needs the flip open | Drive Report |
+| GPS rhythm | gaps of several seconds | Phone check, key 1; Drive Report |
+| GPS spread | worst accuracy and the share of fixes vaguer than 20 m. An average hides the bad moments, and none of it says which lane you're in | Drive Report |
+| Frame pacing while the map moves | a noticeable share of frames over 50 ms, or single long stalls | Phone check, key 5; Drive Report |
+| Key response | a press that visibly lags | Drive Report |
+| Voice | failed prompts. "Played" is only the speech engine's word; whether it was heard is the passenger's call | Drive Report; listen |
 | Battery | per hour of driving | Drive Report (if the phone reports it) |
 
-The Drive Report (More > Drive Report) records a trip as it happens and is kept until the next one, so a passenger can read it out afterwards. It samples frame pacing for 3 seconds every 30, which keeps its own cost small.
+- **Drive Report** (More > Drive Report): records a trip as it happens and is kept until the next one, so a passenger can read it out afterwards. It samples frame pacing for 3 seconds every 30, which keeps its own cost small. It reports numbers without labeling them good or bad.
+- **Reduce Motion** (More): turns off gliding, the zoom animation, and the fly-in when starting a route. If the phone stutters, compare with it on before changing any code.
+- **When the screen comes back** (flip opened, app back in front): screen-on is requested again. If GPS went quiet while hidden, it's restarted rather than trusted.
 
 ## Needs the phone to confirm
 

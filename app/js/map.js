@@ -26,7 +26,8 @@
   var DPR = Math.min(window.devicePixelRatio || 1, 2);
   var RAD = Math.PI / 180;
 
-  var still = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var systemStill = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var still = systemStill; // no gliding, zoom animation or fly-to: the map jumps straight there
 
   function $(id) {
     return document.getElementById(id);
@@ -562,6 +563,10 @@
       if (sig === JSON.stringify(callouts)) return;
       callouts = list;
       scheduleLabels();
+    },
+
+    setStill: function (on) {
+      still = on || systemStill;
     },
 
     setRotate: function (on) {
