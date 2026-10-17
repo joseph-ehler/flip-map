@@ -123,10 +123,17 @@ Open `http://localhost:8417/index.html?sim`. `?sim` fakes a drive around downtow
 ## Tests
 
 ```bash
+npm install
+```
+
+```bash
 node --test tests/
 ```
 
-Lane guidance is the one place a mistake could change how someone drives, so it has its own tests, including real Gainesville junctions saved from the routing service.
+`npm install` is needed once, for jsdom, which the search test uses. The app itself has no dependencies or build step.
+
+- **Lane guidance** has its own tests, including real Gainesville junctions saved from the routing service, since it's the one place a mistake could change how someone drives.
+- **The navigation engine and network failure paths** are tested by replaying drives through the real `nav.js` against a mock routing server: stray GPS fixes, tunnels, close turns, hanging and failing requests, and late search answers. See [research/audit-nav-engine.md](research/audit-nav-engine.md).
 
 ## Getting it onto the phone
 
