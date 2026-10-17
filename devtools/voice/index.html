@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Test</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="listen.css">
+</head>
+<body>
+  <main>
+
+    <section id="start" class="screen">
+      <header class="head">
+        <p class="eyebrow">Flip Map</p>
+        <h1>Voice test</h1>
+        <p class="lede">Each clip is a real driving instruction. Press <b>Got it</b> the moment you know what to do, then say what it was and how it sounded. The voices stay unnamed and shuffled until the end.</p>
+      </header>
+
+      <div class="card">
+        <label class="row">
+          <span class="row-label">Your name</span>
+          <input id="listener" type="text" placeholder="Optional" autocomplete="off">
+        </label>
+        <div class="row stack">
+          <span class="row-label">Listening through</span>
+          <div class="seg" id="through" role="radiogroup" aria-label="Listening through">
+            <button data-v="headphones" class="on">Headphones</button>
+            <button data-v="laptop">Laptop</button>
+            <button data-v="phone">Phone speaker</button>
+            <button data-v="car">Car</button>
+          </div>
+        </div>
+        <label class="row switch-row">
+          <span><span class="row-label">Flip phone speaker</span><small>Telephone-band filter: no bass, no sparkle</small></span>
+          <input type="checkbox" id="sim-speaker" class="switch">
+        </label>
+        <label class="row switch-row">
+          <span><span class="row-label">Road noise</span><small>Engine and tire rumble under the voice</small></span>
+          <input type="checkbox" id="sim-noise" class="switch">
+        </label>
+        <div class="row stack">
+          <span class="row-label">Length</span>
+          <div class="seg" id="length" role="radiogroup" aria-label="Length">
+            <button data-v="quick" class="on">Quick · 8 phrases</button>
+            <button data-v="full">Full · all phrases</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="voices-note" class="note"></p>
+      <div class="actions">
+        <button id="begin" class="primary" disabled>Start</button>
+        <button id="browse-open" class="plain">Browse all clips</button>
+      </div>
+
+      <section id="history" class="history" hidden>
+        <h2>Saved sessions</h2>
+        <p id="history-sum" class="note"></p>
+        <div class="table-wrap"><table id="history-table"></table></div>
+        <div class="actions left">
+          <button id="history-download" class="plain">Download all</button>
+          <button id="history-clear" class="plain danger">Clear saved sessions</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="trial" class="screen" hidden>
+      <div class="progress">
+        <span id="t-count"></span>
+        <div class="bar"><i id="t-bar"></i></div>
+        <button id="t-quit" class="plain small">End early</button>
+      </div>
+      <div class="stage">
+        <button id="gotit" class="gotit" disabled aria-label="Got it">
+          <span class="pulse"></span>
+          <b>Got it</b>
+          <small>Space</small>
+        </button>
+        <p id="t-status" class="status" aria-live="polite"></p>
+      </div>
+      <div id="answer" class="card answer" hidden>
+        <h2>What do you do?</h2>
+        <div id="choices" class="choices"></div>
+        <div class="rate">
+          <span class="row-label">Clear</span>
+          <div class="seg small" id="clarity"></div>
+        </div>
+        <div class="rate">
+          <span class="row-label">Natural</span>
+          <div class="seg small" id="natural"></div>
+        </div>
+        <div class="actions">
+          <button id="replay" class="plain">Play again</button>
+          <button id="next" class="primary" disabled>Next</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="results" class="screen" hidden>
+      <header class="head">
+        <p class="eyebrow">Results</p>
+        <h1 id="r-title">This session</h1>
+        <p id="r-cond" class="lede"></p>
+      </header>
+      <div class="table-wrap"><table id="r-table"></table></div>
+      <p class="note">
+        <b>Understood</b>: the right maneuver picked. <b>Time</b>: median from the start of the clip to <i>Got it</i>, right answers only;
+        each phrase is heard once per voice, so later hearings are quicker, and the shuffled order spreads that evenly.
+        <b>Clear</b> and <b>Natural</b>: average of 1–5. <b>Pack</b>: all phrases as Opus at 24 kb/s.
+      </p>
+      <div class="actions">
+        <button id="r-download" class="plain">Download this session</button>
+        <button id="r-again" class="primary">Another session</button>
+      </div>
+    </section>
+
+    <section id="browse" class="screen wide" hidden>
+      <header class="head">
+        <p class="eyebrow">All clips</p>
+        <h1>Browse</h1>
+        <p class="lede">Every phrase in every voice, with names. Hover a play button to see the exact text each engine was given, including respellings.</p>
+      </header>
+      <div class="table-wrap"><table id="browse-table" class="browse"></table></div>
+      <div class="actions left"><button id="browse-close" class="primary">Done</button></div>
+    </section>
+
+  </main>
+  <script src="listen.js"></script>
+</body>
+</html>

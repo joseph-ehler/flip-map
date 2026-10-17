@@ -1,0 +1,111 @@
+{
+ "about": "How regional names and road numbers should be said. 'respell' is only for words engines are likely to misread: it replaces the written form for engines without phonetic input (Piper, ElevenLabs), and OpenAI is told it. 'sounds' documents ordinary names that engines already say right, so they're left alone. 'ipa' goes to engines that take phonetic spellings (Google custom pronunciations). 'sure': false means it still needs a local ear to confirm.",
+ "entries": [
+  {
+   "text": "Alachua",
+   "respell": "uh-LATCH-oo-uh",
+   "ipa": "əˈlætʃuə",
+   "sure": true,
+   "note": "County and city north of Gainesville; engines tend to say 'ala-CHOO-a'."
+  },
+  {
+   "text": "Micanopy",
+   "respell": "mick-uh-NO-pee",
+   "ipa": "ˌmɪkəˈnoʊpi",
+   "sure": true,
+   "note": "Town south of Gainesville on US-441."
+  },
+  {
+   "text": "Ocala",
+   "ipa": "oʊˈkælə",
+   "sure": true,
+   "sounds": "oh-CAL-uh"
+  },
+  {
+   "text": "Lemerand",
+   "respell": "LEM-er-and",
+   "ipa": "ˈlɛmərænd",
+   "sure": false,
+   "note": "Gale Lemerand Drive, University of Florida. Confirm locally."
+  },
+  {
+   "text": "Archer",
+   "ipa": "ˈɑɹtʃɚ",
+   "sure": true,
+   "sounds": "AR-cher"
+  },
+  {
+   "text": "Waldo",
+   "ipa": "ˈwɔldoʊ",
+   "sure": true,
+   "sounds": "WALL-doe"
+  },
+  {
+   "text": "Williston",
+   "ipa": "ˈwɪlɪstən",
+   "sure": true,
+   "sounds": "WILL-iss-tun"
+  },
+  {
+   "text": "Newberry",
+   "ipa": "ˈnuˌbɛɹi",
+   "sure": true,
+   "sounds": "NEW-berry"
+  },
+  {
+   "text": "Gainesville",
+   "ipa": "ˈɡeɪnzvɪl",
+   "sure": true,
+   "sounds": "GAINZ-vill"
+  },
+  {
+   "text": "I-75",
+   "respell": "I seventy-five",
+   "number": true,
+   "sure": true,
+   "note": "Some engines say 'I minus seventy-five' or 'one seventy-five'."
+  },
+  {
+   "text": "US-301",
+   "respell": "U.S. three-oh-one",
+   "number": true,
+   "sure": false,
+   "note": "Confirm whether locals say 'three-oh-one' or 'three-hundred-one'."
+  },
+  {
+   "text": "US-441",
+   "respell": "U.S. four-forty-one",
+   "number": true,
+   "sure": false,
+   "note": "Confirm locally."
+  },
+  {
+   "text": "Haile",
+   "respell": "hail",
+   "ipa": "heɪl",
+   "sure": true,
+   "note": "Haile Plantation."
+  },
+  {
+   "text": "Depot",
+   "respell": "DEE-poe",
+   "ipa": "ˈdipoʊ",
+   "sure": true,
+   "note": "Depot Avenue."
+  },
+  {
+   "text": "Kanapaha",
+   "respell": "kan-uh-PAH-hah",
+   "ipa": "ˌkænəˈpɑhɑ",
+   "sure": false,
+   "note": "Kanapaha Botanical Gardens. Confirm locally."
+  },
+  {
+   "text": "Tioga",
+   "respell": "tie-OH-guh",
+   "ipa": "taɪˈoʊɡə",
+   "sure": false,
+   "note": "Confirm locally."
+  }
+ ]
+}

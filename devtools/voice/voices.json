@@ -1,0 +1,30 @@
+{
+  "about": "The voices to compare. Add, remove or change entries freely; 'id' names the samples folder. 'pron' is how pronunciations.json is applied: 'respell' (rewrite the text), 'ipa' (Google custom pronunciations, respelling road numbers), 'instructions' (OpenAI: told how to say them), or 'none'. Model names change; `node generate.js --list <provider>` shows what your account offers.",
+  "brief": "In a clear, composed, reassuring voice, give precise driving directions. Sound human and natural, with minimal emotional inflection. Never sound robotic or theatrical. Speak at a natural, unhurried pace. Emphasize the maneuver, not the street name.",
+  "voices": [
+    { "id": "piper-kristin", "provider": "piper", "label": "Piper · Kristin", "model": "en_US-kristin-medium", "pron": "respell",
+      "license": "Training data public domain (LibriVox). Samples may be published." },
+    { "id": "piper-norman", "provider": "piper", "label": "Piper · Norman", "model": "en_US-norman-medium", "pron": "respell",
+      "license": "Training data public domain. Samples may be published." },
+
+    { "id": "openai-marin", "provider": "openai", "label": "OpenAI · marin", "model": "gpt-4o-mini-tts", "voice": "marin", "pron": "instructions",
+      "license": "OpenAI's terms: the output is yours, and listeners must be told the voice is AI-generated." },
+    { "id": "openai-cedar", "provider": "openai", "label": "OpenAI · cedar", "model": "gpt-4o-mini-tts", "voice": "cedar", "pron": "instructions",
+      "license": "As above." },
+
+    { "id": "elevenlabs-v3-sarah", "provider": "elevenlabs", "label": "ElevenLabs · v3 · Sarah", "model": "eleven_v3", "voiceName": "Sarah",
+      "settings": { "stability": 0.5 }, "pron": "respell",
+      "license": "Check your plan: commercial use needs a paid plan, and the terms limit publishing generated clips as a collection." },
+    { "id": "elevenlabs-v2-sarah", "provider": "elevenlabs", "label": "ElevenLabs · Multilingual v2 · Sarah", "model": "eleven_multilingual_v2", "voiceName": "Sarah",
+      "settings": { "stability": 0.6, "similarity_boost": 0.75, "style": 0, "use_speaker_boost": true }, "pron": "respell",
+      "license": "As above." },
+    { "id": "elevenlabs-flash-sarah", "provider": "elevenlabs", "label": "ElevenLabs · Flash v2.5 · Sarah", "model": "eleven_flash_v2_5", "voiceName": "Sarah",
+      "settings": { "stability": 0.6, "similarity_boost": 0.75, "style": 0, "use_speaker_boost": true }, "pron": "respell",
+      "license": "As above." },
+
+    { "id": "google-chirp3-charon", "provider": "google", "label": "Google · Chirp 3 HD · Charon", "voice": "en-US-Chirp3-HD-Charon", "pron": "ipa",
+      "license": "Google Cloud terms: the output is yours to use." },
+    { "id": "google-chirp3-kore", "provider": "google", "label": "Google · Chirp 3 HD · Kore", "voice": "en-US-Chirp3-HD-Kore", "pron": "ipa",
+      "license": "As above." }
+  ]
+}

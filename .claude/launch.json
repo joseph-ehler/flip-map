@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "http-server@14.1.1", "app", "-p", "8417", "-c-1", "-s"],
       "port": 8417
+    },
+    {
+      "name": "voice-test",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["devtools/voice/serve.js"],
+      "port": 8419
     }
   ]
 }

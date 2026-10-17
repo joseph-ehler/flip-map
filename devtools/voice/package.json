@@ -1,0 +1,10 @@
+{
+  "name": "flip-map-voice",
+  "private": true,
+  "description": "Blind listening test of navigation voices for Flip Map. Development tool only; nothing here ships with the app.",
+  "scripts": {
+    "setup-piper": "$(command -v python3.13 || command -v python3) -m venv .venv && .venv/bin/pip install -q piper-tts==1.8.0 && .venv/bin/python -m piper.download_voices --data-dir models en_US-kristin-medium en_US-norman-medium",
+    "generate": "node generate.js",
+    "listen": "node serve.js"
+  }
+}

@@ -1,0 +1,178 @@
+{
+ "id": "piper-norman",
+ "label": "Piper · Norman",
+ "provider": "piper",
+ "model": "en_US-norman-medium",
+ "voice": null,
+ "settings": null,
+ "pron": "respell",
+ "license": "Training data public domain. Samples may be published.",
+ "loudness": "-16 LUFS",
+ "generatedAt": "2026-10-17T12:08:26.960Z",
+ "phrases": {
+  "01-start": {
+   "sent": "Starting route. Head north on Northwest 13th Street",
+   "lufs": -16.9,
+   "pronounced": [],
+   "seconds": 3.46,
+   "mp3Bytes": 28460,
+   "opusBytes": 10655
+  },
+  "02-early-right": {
+   "sent": "In half a mile, turn right onto Archer Road",
+   "lufs": -17,
+   "pronounced": [],
+   "seconds": 2.83,
+   "mp3Bytes": 23468,
+   "opusBytes": 8705
+  },
+  "03-now-right": {
+   "sent": "Turn right onto Archer Road",
+   "lufs": -16.8,
+   "pronounced": [],
+   "seconds": 1.91,
+   "mp3Bytes": 15980,
+   "opusBytes": 6098
+  },
+  "04-early-left-short": {
+   "sent": "In 500 feet, turn left onto Gale LEM-er-and Drive",
+   "lufs": -16.7,
+   "pronounced": [
+    "Lemerand"
+   ],
+   "seconds": 3.42,
+   "mp3Bytes": 28076,
+   "opusBytes": 10668
+  },
+  "05-now-left": {
+   "sent": "Turn left onto Gale LEM-er-and Drive",
+   "lufs": -16.7,
+   "pronounced": [
+    "Lemerand"
+   ],
+   "seconds": 2.91,
+   "mp3Bytes": 24044,
+   "opusBytes": 9147
+  },
+  "06-exit-early": {
+   "sent": "In 1 mile, take the exit on the right toward mick-uh-NO-pee",
+   "lufs": -16.8,
+   "pronounced": [
+    "Micanopy"
+   ],
+   "seconds": 3.34,
+   "mp3Bytes": 27500,
+   "opusBytes": 10443
+  },
+  "07-exit-now": {
+   "sent": "Take the exit on the right toward uh-LATCH-oo-uh",
+   "lufs": -16.9,
+   "pronounced": [
+    "Alachua"
+   ],
+   "seconds": 2.35,
+   "mp3Bytes": 19436,
+   "opusBytes": 7460
+  },
+  "08-fork-lanes": {
+   "sent": "In 2.3 miles, keep left onto I seventy-five. Use the 2 left lanes",
+   "lufs": -16.6,
+   "pronounced": [
+    "I-75"
+   ],
+   "seconds": 5.4,
+   "mp3Bytes": 43820,
+   "opusBytes": 16673
+  },
+  "09-merge": {
+   "sent": "Merge left onto U.S. three-oh-one",
+   "lufs": -16.7,
+   "pronounced": [
+    "US-301"
+   ],
+   "seconds": 2.2,
+   "mp3Bytes": 18284,
+   "opusBytes": 6867
+  },
+  "10-roundabout": {
+   "sent": "At the roundabout, take the 2nd exit onto Southwest 20th Avenue",
+   "lufs": -16.9,
+   "pronounced": [],
+   "seconds": 4.1,
+   "mp3Bytes": 33452,
+   "opusBytes": 12754
+  },
+  "11-uturn": {
+   "sent": "Make a U-turn onto Waldo Road",
+   "lufs": -16.6,
+   "pronounced": [],
+   "seconds": 1.85,
+   "mp3Bytes": 15596,
+   "opusBytes": 5800
+  },
+  "12-slight": {
+   "sent": "Turn slightly right onto Northeast Waldo Road",
+   "lufs": -16.8,
+   "pronounced": [],
+   "seconds": 3.39,
+   "mp3Bytes": 27884,
+   "opusBytes": 10391
+  },
+  "13-lane": {
+   "sent": "In a quarter mile, turn right onto Southwest 34th Street. Use the right lane",
+   "lufs": -16.7,
+   "pronounced": [],
+   "seconds": 4.83,
+   "mp3Bytes": 39404,
+   "opusBytes": 14874
+  },
+  "14-reroute": {
+   "sent": "In 800 feet, turn left onto West University Avenue",
+   "lufs": -16.7,
+   "pronounced": [],
+   "seconds": 3.49,
+   "mp3Bytes": 28652,
+   "opusBytes": 10810
+  },
+  "15-resume": {
+   "sent": "Resuming route. In 1.4 miles, turn left onto Williston Road",
+   "lufs": -16.6,
+   "pronounced": [],
+   "seconds": 4.45,
+   "mp3Bytes": 36332,
+   "opusBytes": 13713
+  },
+  "16-stay": {
+   "sent": "Turn left to stay on Newberry Road",
+   "lufs": -16.6,
+   "pronounced": [],
+   "seconds": 2.55,
+   "mp3Bytes": 21164,
+   "opusBytes": 7941
+  },
+  "17-far-exit": {
+   "sent": "In 12 miles, take the exit on the right toward Ocala",
+   "lufs": -16.9,
+   "pronounced": [],
+   "seconds": 2.99,
+   "mp3Bytes": 24620,
+   "opusBytes": 9419
+  },
+  "18-arrive-soon": {
+   "sent": "In 300 feet, arrive at destination, on the right",
+   "lufs": -16.9,
+   "pronounced": [],
+   "seconds": 3.44,
+   "mp3Bytes": 28268,
+   "opusBytes": 10571
+  },
+  "19-arrived": {
+   "sent": "You have arrived",
+   "lufs": -17.1,
+   "pronounced": [],
+   "seconds": 1.06,
+   "mp3Bytes": 9260,
+   "opusBytes": 3350
+  }
+ }
+}

@@ -1,0 +1,5 @@
+# Copy this file to keys.local (which git ignores) and fill in the services you want to compare.
+# Leave a line empty to skip that service. Keys are sent only to their own service.
+OPENAI_API_KEY=
+ELEVENLABS_API_KEY=
+GOOGLE_API_KEY=

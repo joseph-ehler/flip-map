@@ -1,0 +1,11 @@
+# Keys for the voice services: never committed.
+keys.local
+# Local tools and downloads.
+.venv/
+models/
+work/
+# Premium-voice samples stay local until their licenses say they can be published.
+samples/*
+!samples/piper-*/
+!samples/manifest.json
+results/
