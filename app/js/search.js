@@ -190,9 +190,10 @@
     },
 
     // Returns true when the key was used here; false lets it through (typing, deleting).
-    key: function (e) {
+    // k is the key as app.js reads it (the OK key normalized to "Enter").
+    key: function (e, k) {
       var i = selected();
-      switch (e.key) {
+      switch (k || e.key) {
         case 'Enter':
           if (i >= 0) choose(i);
           else submit();

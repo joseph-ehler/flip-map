@@ -752,11 +752,30 @@
     }
   };
 
+  // The Flip 4's center OK key is reported to arrive as "MicrophoneToggle" rather than "Enter"
+  // (kaios.dev). Inside Flip Map it means OK, and only while Flip Map has the keys, so the phone's
+  // microphone key is untouched everywhere else. If a phone sends both for one press, the second
+  // (within 80 ms) is dropped so OK never acts twice.
+  var lastOk = { key: '', at: 0 };
+
+  function keyOf(e) {
+    if (e.key !== 'MicrophoneToggle' && e.key !== 'Enter') return e.key;
+    var now = Date.now();
+    var twin = lastOk.key && lastOk.key !== e.key && now - lastOk.at < 80;
+    lastOk = { key: e.key, at: now };
+    return twin ? null : 'Enter';
+  }
+
   document.addEventListener('keydown', function (e) {
-    var used = sheet === 'search' ? search.key(e)
-      : sheet === 'settings' ? settingsKey(e.key)
-        : sheet === 'report' ? reportKey(e.key)
-          : handlers[state](e.key);
+    var k = keyOf(e);
+    if (k === null) {
+      e.preventDefault();
+      return;
+    }
+    var used = sheet === 'search' ? search.key(e, k)
+      : sheet === 'settings' ? settingsKey(k)
+        : sheet === 'report' ? reportKey(k)
+          : handlers[state](k);
     if (used) e.preventDefault();
     FM.report.key();
     clearTimeout(timers.resume);

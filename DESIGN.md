@@ -118,7 +118,7 @@ Peak frame rate on a Mac means nothing for the Flip. These are the measures. The
 
 | Measure | Watch for | Where |
 |---|---|---|
-| Works with the flip closed | GPS fixes and finished prompts while the screen was off. Zero means the browser suspends the page, and navigation needs the flip open | Drive Report |
+| Works with the flip closed | Phone check flip test (keys 6 and 7): timer ticks and **new** polled positions while hidden. The Drive Report's "fixes while off" is expected to be 0 on KaiOS 4 (no `watchPosition` to hidden pages, per the engine source), so it only proves the page was hidden | Phone check; Drive Report |
 | GPS rhythm | gaps of several seconds | Phone check, key 1; Drive Report |
 | GPS spread | worst accuracy and the share of fixes vaguer than 20 m. An average hides the bad moments, and none of it says which lane you're in | Drive Report |
 | Frame pacing while the map moves | a noticeable share of frames over 50 ms, or single long stalls | Phone check, key 5; Drive Report |

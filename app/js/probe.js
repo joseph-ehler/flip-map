@@ -52,7 +52,7 @@
     keyLog = keyLog.slice(0, 8);
     row('keys', 'Keys pressed (press every key once)', keyLog.join(', '));
     var short = {
-      SoftLeft: 'SL', SoftRight: 'SR', Enter: 'OK', Backspace: 'Bk',
+      SoftLeft: 'SL', SoftRight: 'SR', Enter: 'OK', MicrophoneToggle: 'Mic', Backspace: 'Bk',
       ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R', Call: 'Call'
     }[e.key];
     if (short) {
@@ -68,6 +68,8 @@
       case '3': testVibrate(); break;
       case '4': toggleTone(); break;
       case '5': testMap(); break;
+      case '6': flipTest(true); break;
+      case '7': flipTest(false); break;
       default: return;
     }
     e.preventDefault();
@@ -163,6 +165,128 @@
       note('gps', 'err' + err.code);
     }, { enableHighAccuracy: true, timeout: 120000, maximumAge: 0 });
   }
+
+  // --- Flip-closed GPS experiment (6 with wake locks, 7 without, as the control) ---
+  // KaiOS 4's Gecko never delivers watchPosition updates to a hidden page, installed app or not
+  // (research/kaios4-platform.md, from the source). The proposed workaround: hold 'gps' and 'cpu'
+  // wake locks and, while hidden, ask once a second for the cached position. This measures whether
+  // the page really goes hidden, whether timers keep running, and whether the polled positions are
+  // new (a later timestamp) or the same fix handed back again.
+  // Temporary diagnostic: it stops after 5 minutes, on 6 or 7 again, or when the page goes away,
+  // and always releases its wake locks.
+
+  var FLIP_TEST_MS = 5 * 60 * 1000;
+  var flip = null;
+
+  function flipTest(withLocks) {
+    if (flip) {
+      stopFlipTest('stopped');
+      return;
+    }
+    var id = withLocks ? 'flip' : 'flip0';
+    var label = withLocks ? 'Flip test (wake locks)' : 'Flip test (no wake locks)';
+    if (!navigator.geolocation) {
+      row(id, label, 'no geolocation', false);
+      return;
+    }
+    var f = flip = {
+      id: id, label: label, withLocks: withLocks, locks: [], key: withLocks ? '6' : '7',
+      hides: 0, hiddenMs: 0, hiddenSince: 0, ticks: 0, lastTick: 0, maxGap: 0,
+      watchHidden: 0, fresh: 0, same: 0, failed: 0, lastTs: 0, oldest: 0, lockState: ''
+    };
+    if (withLocks) {
+      ['gps', 'cpu'].forEach(function (topic) {
+        try {
+          var lock = navigator.b2g && navigator.b2g.requestWakeLock && navigator.b2g.requestWakeLock(topic);
+          if (lock) f.locks.push(lock);
+        } catch (e) {}
+      });
+    }
+    f.lockNote = !withLocks ? 'no wake locks'
+      : f.locks.length ? f.locks.map(function (l) { return l.topic; }).join('+') + ' held'
+        : 'wake locks not available';
+    f.watch = navigator.geolocation.watchPosition(function () {
+      if (flip === f && document.hidden) f.watchHidden++;
+    }, function () {}, { enableHighAccuracy: true, maximumAge: 0 });
+    f.timer = setInterval(function () { flipTick(f); }, 1000);
+    f.stopTimer = setTimeout(function () { stopFlipTest('finished after 5 minutes'); }, FLIP_TEST_MS);
+    row(f.id, f.label, 'running (' + f.lockNote + '). Close the flip for about 2 minutes, ideally while ' +
+      'moving, then open it. Press ' + f.key + ' again to stop early.');
+  }
+
+  function flipTick(f) {
+    if (flip !== f || !document.hidden) return; // only hidden time counts
+    var now = Date.now();
+    f.ticks++;
+    if (f.lastTick) f.maxGap = Math.max(f.maxGap, now - f.lastTick);
+    f.lastTick = now;
+    if (f.locks.length && navigator.b2g.getWakeLockState) {
+      try {
+        f.lockState = navigator.b2g.getWakeLockState('gps');
+      } catch (e) {}
+    }
+    navigator.geolocation.getCurrentPosition(function (p) {
+      if (flip !== f) return;
+      if (p.timestamp > f.lastTs) {
+        f.fresh++;
+        f.lastTs = p.timestamp;
+      } else {
+        f.same++;
+      }
+      f.oldest = Math.max(f.oldest, Date.now() - p.timestamp);
+    }, function () {
+      if (flip === f) f.failed++;
+    }, { maximumAge: 3000, timeout: 1500, enableHighAccuracy: true });
+  }
+
+  function showFlip(f, status) {
+    var text;
+    if (!f.hides) {
+      text = status + ': the page never went hidden, so closing the flip may not hide it';
+    } else {
+      text = status + ': hidden ' + f.hides + '× for ' + Math.round(f.hiddenMs / 1000) + ' s. ' +
+        'Timers ran ' + f.ticks + '× (longest gap ' + (f.maxGap / 1000).toFixed(1) + ' s). ' +
+        'watchPosition while hidden: ' + f.watchHidden + '. ' +
+        'Polled: ' + f.fresh + ' new, ' + f.same + ' repeats, ' + f.failed + ' failed' +
+        (f.fresh + f.same ? ' (oldest ' + (f.oldest / 1000).toFixed(1) + ' s)' : '') + '. ' +
+        f.lockNote + (f.lockState ? ' (' + f.lockState + ')' : '') + '.';
+    }
+    row(f.id, f.label, text, f.withLocks && f.hides ? f.fresh > 0 : undefined);
+    note(f.withLocks ? 'flip' : 'flip0', !f.hides ? 'nohide'
+      : f.ticks + 't/' + f.watchHidden + 'w/' + f.fresh + 'n/' + f.same + 'r');
+  }
+
+  function stopFlipTest(reason) {
+    var f = flip;
+    if (!f) return;
+    flip = null;
+    clearInterval(f.timer);
+    clearTimeout(f.stopTimer);
+    navigator.geolocation.clearWatch(f.watch);
+    f.locks.forEach(function (lock) {
+      try {
+        lock.unlock();
+      } catch (e) {}
+    });
+    if (f.hiddenSince) f.hiddenMs += Date.now() - f.hiddenSince;
+    f.hiddenSince = 0;
+    showFlip(f, reason + ', wake locks released');
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    var f = flip;
+    if (!f) return;
+    if (document.hidden) {
+      f.hides++;
+      f.hiddenSince = Date.now();
+      f.lastTick = 0;
+    } else {
+      if (f.hiddenSince) f.hiddenMs += Date.now() - f.hiddenSince;
+      f.hiddenSince = 0;
+      showFlip(f, 'running');
+    }
+  });
+  window.addEventListener('pagehide', function () { stopFlipTest('page closed'); });
 
   // --- Map speed: load and draw real map tiles here (around you, or downtown Gainesville), then turn
   // them for 2 s the way the app does while driving, counting frames. ---

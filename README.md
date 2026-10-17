@@ -33,6 +33,8 @@ Every push to `main` republishes `app/` there, via [pages.yml](.github/workflows
 |---|---|---|
 | Left soft key or 7 | Search | Overview of the route |
 | OK or 5 | Locate me (or reset north) | Repeat the next turn out loud, or Resume after panning |
+
+On the Flip 4 the center OK key is reported to arrive as `MicrophoneToggle` rather than `Enter`. Inside Flip Map both mean OK, and the phone check's key summary shows which one this phone sends (`OK` or `Mic`).
 | Right soft key or 9 | More: voice, appearance, map rotation, phone check | Same, plus End Route |
 | D-pad or 2 / 4 / 6 / 8 | Pan | Pan (snaps back after 12 s) |
 | 1 / 3 | Zoom out / in | Zoom out / in |
@@ -46,7 +48,7 @@ The digit keys duplicate the soft keys and D-pad because the regular KaiOS brows
 
 No code changes until this is done. Each step answers a question the computer can't. Note anything that feels awkward on the keypad as you go.
 
-1. **Phone check.** On the phone's browser, open `joseph-ehler.github.io/flip-map/probe.html` and allow location. Wait 15 seconds while it times GPS updates. Press every key once. Then press 2 for voice, 3 for vibrate, 4 for sound, and 5 for map speed (it draws real map tiles and turns them). While the sound plays, close the flip and listen for whether it keeps beeping. **Write down the blue summary line** and send it back. It covers:
+1. **Phone check.** On the phone's browser, open `joseph-ehler.github.io/flip-map/probe.html` and allow location. Wait 15 seconds while it times GPS updates. Press every key once (the summary shows whether the OK key arrives as `OK` or `Mic`). Then press 2 for voice, 3 for vibrate, 4 for sound, and 5 for map speed (it draws real map tiles and turns them). While the sound plays, close the flip and listen for whether it keeps beeping. **Write down the blue summary line** and send it back. It covers:
    - GPS accuracy, time to first fix, and how often fixes arrive
    - how fast the map draws and how smoothly it turns
    - whether there's an English speech voice
@@ -63,15 +65,17 @@ No code changes until this is done. Each step answers a question the computer ca
    - **Glanceable:** can you read the next step without a long look? In sunlight?
 
    Also: does lane advice (where it appears) come early enough to change lanes calmly, and does it match the paint on the road?
-6. **Flip closed, with a turn coming.** Partway through, close the flip about half a mile before a turn, so a prompt is due while it's closed. A long straight stretch proves nothing: no prompt would be due anyway. Did the turn prompt play? Open it after the turn: did the map catch up?
-7. **Interruptions.** Have someone call you mid-route, then hang up. Does navigation come back? Let the screen time out once. Does it resume on the right step?
-8. **Afterwards:** open More > Drive Report and read out every line.
-   - "Screen off" shows whether GPS fixes arrived and prompts finished while the flip was closed. Zero of both, *with a turn due*, strongly suggests the browser suspends the page. That is a limit of the browser tab, not necessarily of an installed KaiOS app.
+6. **Flip test, as a passenger** (before or during the drive). In the phone check, press **6**, close the flip for about 2 minutes while moving, then open it and read the "Flip test" line. Then press **7** and repeat. That's the same test without wake locks, the control. Each run stops itself after 5 minutes and releases its wake locks. See [what the flip test measures](#what-the-flip-test-measures).
+7. **Flip closed, with a turn coming.** Partway through, close the flip about half a mile before a turn, so a prompt is due while it's closed. A long straight stretch proves nothing: no prompt would be due anyway. Did the turn prompt play? Open it after the turn: did the map catch up?
+8. **Interruptions.** Have someone call you mid-route, then hang up. Does navigation come back? Let the screen time out once. Does it resume on the right step?
+9. **Afterwards:** open More > Drive Report and read out every line.
+   - "GPS fixes while off: 0" is expected and is **not** proof the phone went to sleep. KaiOS 4's browser engine never sends location updates to a hidden page, and that's true for an installed app too (see below). It shows the page was hidden.
+   - "Prompts finished while off" counts the speech engine saying it finished, even if the sound was muted. Only the passenger's ears count.
    - If the map stuttered, turn on More > Reduce Motion, drive a little more, and note whether it helps.
 
 What the results decide: rank failures by consequence, not by which happened first.
 
-- **Changes the plan:** no English voice, no GPS or prompts with the flip closed, or the dot not following the right road. These decide how Flip Map is delivered: browser tab, installed KaiOS app, or "works with the flip open".
+- **Changes the plan:** no English voice, the flip test showing no new positions or no timer ticks with the flip closed, prompts not heard with the flip closed, or the dot not following the right road. These decide how Flip Map is delivered: browser tab with wake locks, installed KaiOS app for background audio, or "works with the flip open".
 - **Calls for tuning:** stutter, slow keys, small text, awkward keypad moments. Targeted fixes within the current design.
 
 Then, in order: compare with an installed (packaged) app, which may get different permissions, audio, and background behavior than a browser tab, even running the same code. After that, decide on a backend, adding only the services the measurements justify.
@@ -79,6 +83,34 @@ Then, in order: compare with an installed (packaged) app, which may get differen
 The build being tested is tagged `hw-baseline-1` in git, with its configuration in the tag message, so later changes can be compared against it.
 
 Optional, if you're curious: dial `*#*333284#*#*` to turn on developer mode, install the Android tools on the Mac (`brew install android-platform-tools`), connect by USB, and run `adb devices`. If the phone is listed, installing Flip Map as a real app becomes possible to try. If not, the KaiStore test-device route is the next option.
+
+### What the flip test measures
+
+Reading KaiOS's published browser-engine source (Gecko 123, the version KaiOS 4.0 reports) showed three things. They're written up in [research/kaios4-platform.md](research/kaios4-platform.md):
+
+- **No location updates to a hidden page.** The engine never sends a hidden page `watchPosition` updates, installed app or not. KaiOS 3 (Gecko 84) didn't have this rule. So zero updates while the flip is closed means the page was hidden, not necessarily that the phone slept, and installing the app wouldn't change it.
+- **A possible workaround, with no install needed.** Any page can hold a `gps` wake lock, which keeps the GPS running and its last position fresh, and a `cpu` wake lock, which keeps the page's timers running. While hidden, it then asks for that cached position once a second. Nothing in the engine source blocks this path.
+- **Voice is a separate question.** The built-in speech voice always plays on the "normal" audio channel. An installed app can play recorded audio on the "content" channel, which KaiOS keeps playing in the background.
+
+The flip test's line reports, for the time the page was hidden:
+
+| Part | Meaning |
+|---|---|
+| hidden N× for S s | The page really went hidden. "Never went hidden" means closing the flip doesn't hide it |
+| Timers ran N× (longest gap) | The processor stayed awake. About one per second is good; zero means the phone slept |
+| watchPosition while hidden | Expected 0, per the source |
+| Polled: new / repeats / failed | **new** = a position with a later timestamp than the last one, which means the workaround works. **repeats** = the same cached fix handed back again |
+| gps+cpu held (locked-background) | The wake locks were granted and held while hidden |
+
+Its summary code reads timer ticks / watch updates / new / repeats, for example `flip=118t/0w/96n/20r`. The control run (key 7) shows it as `flip0=…`.
+
+**Not yet verified on the T440W:**
+- whether closing the flip hides the page at all
+- whether the `cpu` lock keeps timers running with the flip closed (the closed system app decides)
+- whether polled positions are actually new
+- whether speech is audible while hidden
+
+The app itself doesn't use the workaround yet. It's built only after this test passes.
 
 ## Try it on the computer
 
