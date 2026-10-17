@@ -1,10 +1,11 @@
 // Serves ../../app on http://localhost:8418 with caching off, so every run sees the current files.
+// FLIPMAP_APP=<folder> serves another copy instead (e.g. main's app, to compare with a branch).
 'use strict';
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.join(__dirname, '..', '..', 'app');
+const ROOT = path.resolve(process.env.FLIPMAP_APP || path.join(__dirname, '..', '..', 'app'));
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png',
@@ -26,4 +27,4 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
   });
-}).listen(8418, () => console.log('serving app/ on http://localhost:8418'));
+}).listen(8418, () => console.log('serving ' + ROOT + ' on http://localhost:8418'));

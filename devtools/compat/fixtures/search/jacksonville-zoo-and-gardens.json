@@ -1,0 +1,40 @@
+{
+ "q": "jacksonville zoo and gardens",
+ "url": "https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&q=jacksonville%20zoo%20and%20gardens&viewbox=-82.8248,30.1516,-81.8248,29.1516",
+ "body": [
+  {
+   "place_id": 301282326,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "relation",
+   "osm_id": 13533165,
+   "lat": "30.4022848",
+   "lon": "-81.6432620",
+   "category": "tourism",
+   "type": "zoo",
+   "place_rank": 30,
+   "importance": 0.27438272693865795,
+   "addresstype": "tourism",
+   "name": "Jacksonville Zoo and Gardens",
+   "display_name": "Jacksonville Zoo and Gardens, 370, Zoo Parkway, Holly Ford, Jacksonville, Duval County, Florida, 32218, United States",
+   "address": {
+    "tourism": "Jacksonville Zoo and Gardens",
+    "house_number": "370",
+    "road": "Zoo Parkway",
+    "hamlet": "Holly Ford",
+    "city": "Jacksonville",
+    "county": "Duval County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32218",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "30.3978614",
+    "30.4069292",
+    "-81.6461537",
+    "-81.6403292"
+   ]
+  }
+ ]
+}

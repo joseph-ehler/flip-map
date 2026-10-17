@@ -1,0 +1,103 @@
+{
+ "q": "ben hill griffin stadium",
+ "url": "https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&q=ben%20hill%20griffin%20stadium&viewbox=-82.8248,30.1516,-81.8248,29.1516",
+ "body": [
+  {
+   "place_id": 303791628,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "way",
+   "osm_id": 45719890,
+   "lat": "29.6500369",
+   "lon": "-82.3487666",
+   "category": "leisure",
+   "type": "stadium",
+   "place_rank": 30,
+   "importance": 0.4679427114521212,
+   "addresstype": "leisure",
+   "name": "Ben Hill Griffin Stadium",
+   "display_name": "Ben Hill Griffin Stadium, 157, Gale Lemerand Drive, Gainesville, Alachua County, Florida, 32611, United States",
+   "address": {
+    "leisure": "Ben Hill Griffin Stadium",
+    "house_number": "157",
+    "road": "Gale Lemerand Drive",
+    "city": "Gainesville",
+    "county": "Alachua County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32611",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "29.6487751",
+    "29.6512923",
+    "-82.3500018",
+    "-82.3476795"
+   ]
+  },
+  {
+   "place_id": 303781342,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "node",
+   "osm_id": 10728546660,
+   "lat": "29.6510538",
+   "lon": "-82.3497737",
+   "category": "highway",
+   "type": "bus_stop",
+   "place_rank": 30,
+   "importance": 0.00006579156176084563,
+   "addresstype": "highway",
+   "name": "Ben Hill Griffin Stadium",
+   "display_name": "Ben Hill Griffin Stadium, Gale Lemerand Drive, Gainesville, Alachua County, Florida, 32608, United States",
+   "address": {
+    "highway": "Ben Hill Griffin Stadium",
+    "road": "Gale Lemerand Drive",
+    "city": "Gainesville",
+    "county": "Alachua County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32608",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "29.6510038",
+    "29.6511038",
+    "-82.3498237",
+    "-82.3497237"
+   ]
+  },
+  {
+   "place_id": 302550023,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "node",
+   "osm_id": 3813095667,
+   "lat": "29.6519865",
+   "lon": "-82.3490286",
+   "category": "highway",
+   "type": "bus_stop",
+   "place_rank": 30,
+   "importance": 0.00006579156176084563,
+   "addresstype": "highway",
+   "name": "Ben Hill Griffin Stadium",
+   "display_name": "Ben Hill Griffin Stadium, West University Avenue, Gainesville, Alachua County, Florida, 32607, United States",
+   "address": {
+    "highway": "Ben Hill Griffin Stadium",
+    "road": "West University Avenue",
+    "city": "Gainesville",
+    "county": "Alachua County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32607",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "29.6519365",
+    "29.6520365",
+    "-82.3490786",
+    "-82.3489786"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "q": "gainesville regional airport",
+ "url": "https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&q=gainesville%20regional%20airport&viewbox=-82.82596801797203,30.152003,-81.82596801797203,29.152003",
+ "body": [
+  {
+   "place_id": 303161191,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "way",
+   "osm_id": 224796842,
+   "lat": "29.6923104",
+   "lon": "-82.2759966",
+   "category": "aeroway",
+   "type": "aerodrome",
+   "place_rank": 30,
+   "importance": 0.3867453017489014,
+   "addresstype": "aeroway",
+   "name": "Gainesville Regional Airport",
+   "display_name": "Gainesville Regional Airport, 3880, Northeast 39th Avenue, Gainesville, Alachua County, Florida, 32609, United States",
+   "address": {
+    "aeroway": "Gainesville Regional Airport",
+    "house_number": "3880",
+    "road": "Northeast 39th Avenue",
+    "city": "Gainesville",
+    "county": "Alachua County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32609",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "29.6820714",
+    "29.7023634",
+    "-82.2864051",
+    "-82.2475081"
+   ]
+  },
+  {
+   "place_id": 302566705,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "way",
+   "osm_id": 1346808873,
+   "lat": "29.6866414",
+   "lon": "-82.2767845",
+   "category": "aeroway",
+   "type": "terminal",
+   "place_rank": 30,
+   "importance": 0.00006579156176084563,
+   "addresstype": "aeroway",
+   "name": "Gainesville Regional Airport",
+   "display_name": "Gainesville Regional Airport, Airport Entrance, Gainesville, Alachua County, Florida, 32609, United States",
+   "address": {
+    "aeroway": "Gainesville Regional Airport",
+    "road": "Airport Entrance",
+    "city": "Gainesville",
+    "county": "Alachua County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32609",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "29.6861472",
+    "29.6871174",
+    "-82.2776132",
+    "-82.2761559"
+   ]
+  },
+  {
+   "place_id": 303763331,
+   "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+   "osm_type": "node",
+   "osm_id": 4005121911,
+   "lat": "29.6874584",
+   "lon": "-82.2854644",
+   "category": "information",
+   "type": "board",
+   "place_rank": 30,
+   "importance": 0.00006579156176084563,
+   "addresstype": "information",
+   "name": "Gainesville Regional Airport",
+   "display_name": "Gainesville Regional Airport, Waldo Road Greenway, Gainesville, Alachua County, Florida, 32609, United States",
+   "address": {
+    "information": "Gainesville Regional Airport",
+    "road": "Waldo Road Greenway",
+    "city": "Gainesville",
+    "county": "Alachua County",
+    "state": "Florida",
+    "ISO3166-2-lvl4": "US-FL",
+    "postcode": "32609",
+    "country": "United States",
+    "country_code": "us"
+   },
+   "boundingbox": [
+    "29.6874084",
+    "29.6875084",
+    "-82.2855144",
+    "-82.2854144"
+   ]
+  }
+ ]
+}

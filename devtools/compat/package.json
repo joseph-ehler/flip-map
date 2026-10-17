@@ -4,7 +4,12 @@
   "description": "Runs the real Flip Map app in Firefox 123 (Gecko 123, the engine version of KaiOS 4.0 on the TCL Flip 4) at 240x320. Development tool only; the app itself has no dependencies.",
   "scripts": {
     "install-firefox": "PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.playwright.dev playwright install firefox",
-    "check": "playwright test"
+    "install-chromium": "PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.playwright.dev playwright install chromium",
+    "check": "playwright test --project=compat",
+    "audit": "playwright test --project=audit",
+    "long-drive": "playwright test --project=long-drive",
+    "record": "RECORD=1 playwright test --project=audit --project=long-drive",
+    "main-app": "rm -rf results/main-app && mkdir -p results/main-app && git -C ../.. archive main app | tar -x -C results/main-app"
   },
   "devDependencies": {
     "@playwright/test": "1.42.1"
