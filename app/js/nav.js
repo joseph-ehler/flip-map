@@ -175,6 +175,7 @@
     }
 
     if (offCount >= OFF_ROUTE_FIXES && !busy && Date.now() - lastRequest > RETRY_GAP_MS) {
+      FM.report.reroute();
       request(fix, route.dest, true);
     }
 
@@ -335,8 +336,13 @@
     if (buzz && navigator.vibrate) navigator.vibrate(120);
     if (!voice || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
     try {
-      window.speechSynthesis.speak(new window.SpeechSynthesisUtterance(text));
-    } catch (e) {}
+      var u = new window.SpeechSynthesisUtterance(text);
+      u.onend = function () { FM.report.spoke(true); };
+      u.onerror = function () { FM.report.spoke(false); };
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      FM.report.spoke(false);
+    }
   }
 
   function message(text) {

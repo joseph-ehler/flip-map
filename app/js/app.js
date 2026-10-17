@@ -163,7 +163,10 @@
   }
 
   function refreshKeys() {
-    var k = sheet === 'search' ? search.softkeys() : sheet === 'settings' ? ['', 'Select', 'Done'] : stateKeys();
+    var k = sheet === 'search' ? search.softkeys()
+      : sheet === 'settings' ? ['', 'Select', 'Done']
+        : sheet === 'report' ? ['', '', 'Done']
+          : stateKeys();
     setText('sk-left', k[0]);
     setText('sk-right', k[2]);
     setHTML('sk-center', k[1]);
@@ -310,7 +313,7 @@
       var at = tagSpot(p, trip.plans);
       var extra = Math.round((p.duration - trip.plans[0].duration) / 60);
       return {
-        lat: at[0], lon: at[1], key: 'plan' + i, priority: i === trip.choice ? 102 : 101,
+        lat: at[0], lon: at[1], key: 'plan' + i, route: i, priority: i === trip.choice ? 102 : 101,
         kind: i === trip.choice ? 'route' : 'route-alt',
         text: i && extra > 0 ? geo.formatDuration(p.duration) + ' · +' + extra : geo.formatDuration(p.duration)
       };
@@ -354,9 +357,13 @@
     if (!r) return;
     trip = emptyTrip();
     shownRoute = null;
+    FM.report.start(r.dest);
     nav.start(r);
     setState('nav');
-    map.recenter();
+    // One move from the overview into driving: zoom in on you, facing the route's first stretch.
+    var a = r.coords[0];
+    var b = r.coords[Math.min(r.coords.length - 1, 6)];
+    map.recenter({ zoom: zoomFor(fix && fix.speed > 0 ? fix.speed : 0, 9999), bearing: geo.bearing(a[0], a[1], b[0], b[1]) });
   }
 
   function backToSearch() {
@@ -385,6 +392,7 @@
 
   function endRoute() {
     closeSheet();
+    FM.report.stop();
     nav.end();
     flashPill('Route Ended');
   }
@@ -403,6 +411,7 @@
   };
 
   nav.onarrive = function (dest) {
+    FM.report.stop();
     setText('arrived-name', dest.name);
     setState('arrived');
     map.recenter();
@@ -492,6 +501,7 @@
       { icon: 'rotate', tint: 'orange', label: 'Rotate Map', on: function () { return prefs.rotate; },
         act: toggleRotate },
       null,
+      { icon: 'gauge', tint: 'gray', label: 'Drive Report', link: true, act: openReport },
       { icon: 'check', tint: 'gray', label: 'Phone Check', link: true,
         act: function () { location.href = 'probe.html'; } }
     ];
@@ -729,14 +739,61 @@
   document.addEventListener('keydown', function (e) {
     var used = sheet === 'search' ? search.key(e)
       : sheet === 'settings' ? settingsKey(e.key)
-        : handlers[state](e.key);
+        : sheet === 'report' ? reportKey(e.key)
+          : handlers[state](e.key);
     if (used) e.preventDefault();
+    FM.report.key();
     clearTimeout(timers.resume);
     if (state === 'nav' && !sheet && !map.following()) timers.resume = setTimeout(resume, RESUME_MS);
     renderCompass();
     refreshKeys();
   });
   document.addEventListener('focusin', refreshKeys); // e.g. search results arriving
+
+  // --- Drive report sheet: read-only; up and down scroll ---
+
+  function openReport() {
+    closeSheet();
+    openSheet('report');
+    var body = $('report-body');
+    FM.report.rows(function (data) {
+      body.innerHTML = '';
+      if (!data) {
+        body.innerHTML = '<div class="empty"><b>No Trips Yet</b><span></span></div>';
+        body.querySelector('span').textContent = 'Start a route; the report fills in as you drive.';
+        return;
+      }
+      var head = document.createElement('h3');
+      head.className = 'section-head clip';
+      head.textContent = data.title;
+      body.appendChild(head);
+      data.groups.forEach(function (rows) {
+        var ul = document.createElement('ul');
+        ul.className = 'group report';
+        rows.forEach(function (row) {
+          var li = document.createElement('li');
+          li.innerHTML = '<span class="row-label clip"></span><span class="value"></span>';
+          li.firstChild.textContent = row[0];
+          li.lastChild.textContent = row[1];
+          if (row[2] !== null) li.lastChild.className = 'value ' + (row[2] ? 'good' : 'poor');
+          ul.appendChild(li);
+        });
+        body.appendChild(ul);
+      });
+    });
+  }
+
+  function reportKey(k) {
+    var body = $('report-body');
+    switch (k) {
+      case 'ArrowDown': case '8': body.scrollTop += 60; return true;
+      case 'ArrowUp': case '2': body.scrollTop -= 60; return true;
+      case 'SoftRight': case 'SoftLeft': case 'Backspace': case 'Escape': case 'Enter': case '5':
+        closeSheet();
+        return true;
+    }
+    return false;
+  }
 
   // Simulator only: FM.debug.preview({ name, lat, lon }) opens a route preview to anywhere.
   if (sim.enabled) FM.debug = { preview: openPreview };
@@ -763,6 +820,7 @@
     gpsError = 0;
     map.setStale(false);
     map.setFix(fix);
+    FM.report.fix(fix);
     nav.update(fix);
     syncRoute();
     if (first) applyTheme();

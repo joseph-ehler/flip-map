@@ -9,6 +9,7 @@ Turn-by-turn navigation for the TCL Flip 4 5G (KaiOS 4.0). It's plain HTML, CSS,
 - Route preview before you start: time, distance, and arrival. ◀ ▶ switch between alternative routes, and Go starts.
 - A turn card with a drawn arrow, the distance, and the street. A "Then" hint appears when two turns come close together.
 - Lane guidance from OpenStreetMap's lane data, shown and spoken only when the data agrees with the turn.
+- A Drive Report (More > Drive Report) that records how the phone performed on a trip: GPS rhythm, slow frames, key response, spoken prompts, reroutes, and battery.
 - A trip bar showing arrival time, time left, and miles left.
 - Overview of the whole remaining route.
 - Spoken turns: an early warning, then "turn now" with a buzz.
@@ -54,7 +55,8 @@ Do these in order. Each one answers a question the computer can't.
    - whether Apple Music full songs are even possible (needs Widevine DRM)
 2. **Map, standing still.** Open the map outside and wait for the blue dot. Check that it's where you are.
 3. **Keys.** If the D-pad moves a mouse cursor instead of panning, use 2/4/6/8. Then look in the browser's menu for **Pin to Apps Menu**: a pinned app may get the D-pad.
-4. **A short drive with a route.** Have someone else hold the phone, or mount it. Do the turn prompts come early enough? Does lane advice (where it appears) come early enough to change lanes calmly? Does the screen stay on? Does the dot keep up? Is it readable in sunlight?
+4. **A short, familiar drive with a route.** Have a passenger hold the phone, or mount it. Do the turn prompts come early enough? Does lane advice (where it appears) come early enough to change lanes calmly? Is a reroute easy to understand? Does the screen stay on? Does the dot keep up? Is it readable in sunlight? Can you read it at a glance? Close the flip for part of the drive: does the voice keep going?
+5. **Afterwards:** open More > Drive Report and read out the numbers. Green is fine; orange is worth a look.
 
 ## Try it on the computer
 

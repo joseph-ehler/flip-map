@@ -17,6 +17,7 @@
   var RETRY_MS = 8000;
   var PREV_MS = 1500;
   var ZOOM_MS = 320;
+  var FLY_MS = 700; // into driving: zoom, center and turn as one move
   var PAN_MS = 240;
   var EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
   var FIT_PAD = 22;
@@ -76,6 +77,7 @@
   var callouts = []; // tags pinned to the map: next turn's street while driving, route times in preview
   var labelTimer = null;
   var lookAhead = 0.72; // while driving: your height on screen, as a share of the free space
+  var zoomMs = ZOOM_MS;
   var labelHow = 'none';
 
   // --- Coordinates ---
@@ -113,6 +115,29 @@
     };
   }
 
+  // Small boxes every 8 px along each route line on screen.
+  function routeBoxes(f, c) {
+    var w = mapEl.clientWidth;
+    var h = mapEl.clientHeight;
+    return routes.map(function (r) {
+      var boxes = [];
+      var prev = null;
+      r.coords.forEach(function (pt) {
+        var s = toScreen(toWorld(pt[0], pt[1]), f, c);
+        if (prev) {
+          var n = Math.ceil(Math.hypot(s.x - prev.x, s.y - prev.y) / 8);
+          for (var k = 1; k <= n; k++) {
+            var x = prev.x + (s.x - prev.x) * k / n;
+            var y = prev.y + (s.y - prev.y) * k / n;
+            if (x > -10 && x < w + 10 && y > -10 && y < h + 10) boxes.push([x - 5, y - 5, x + 5, y + 5]);
+          }
+        }
+        prev = s;
+      });
+      return boxes;
+    });
+  }
+
   function fromScreen(sx, sy, f, c) {
     var a = cam.rot * RAD;
     var dx = (sx - c.x) / cam.scale;
@@ -134,7 +159,7 @@
   function transition(how) {
     if (still || how === 'none') return 'none';
     if (how === 'gps') return 'transform ' + gpsMs + 'ms linear';
-    return 'transform ' + (how === 'zoom' ? ZOOM_MS : PAN_MS) + 'ms ' + EASE;
+    return 'transform ' + (how === 'zoom' ? zoomMs : PAN_MS) + 'ms ' + EASE;
   }
 
   function place(how) {
@@ -178,11 +203,15 @@
       avoid.push([s.x - PUCK_CLEAR, s.y - PUCK_CLEAR, s.x + PUCK_CLEAR, s.y + PUCK_CLEAR]);
     }
     var extra = [];
-    callouts.forEach(function (c, i) {
-      var cp = geo.project(c.lat, c.lon, 0);
+    var lines = callouts.some(function (c) { return typeof c.route === 'number'; }) ? routeBoxes(f, c) : [];
+    callouts.forEach(function (o, i) {
+      var cp = geo.project(o.lat, o.lon, 0);
+      // A route's tag may sit on its own line, never on another route's.
+      var avoid = [];
+      lines.forEach(function (boxes, r) { if (r !== o.route) avoid = avoid.concat(boxes); });
       extra.push({
-        kind: c.kind || 'route', key: c.key || 'callout' + i, text: c.text, priority: c.priority || 100,
-        minZoom: 0, x: cp.x, y: cp.y, angle: 0
+        kind: o.kind || 'route', key: o.key || 'callout' + i, text: o.text, priority: o.priority || 100,
+        minZoom: 0, x: cp.x, y: cp.y, angle: 0, avoid: avoid
       });
     });
     FM.labels.layout({
@@ -349,9 +378,10 @@
 
   // --- Zoom: scale the world smoothly, then swap in sharp tiles for the new level ---
 
-  function zoomTo(z, announce) {
+  function zoomTo(z, announce, ms) {
     z = geo.clamp(Math.round(z), MIN_ZOOM, MAX_ZOOM);
     if (zoomTimer) settleZoom();
+    zoomMs = ms || ZOOM_MS;
     if (z === cam.zoom) {
       place('zoom');
       return;
@@ -363,7 +393,7 @@
     cam.scale = Math.pow(2, z - cam.zoom);
     zoomTarget = { z: z, announce: announce };
     place('zoom');
-    zoomTimer = setTimeout(settleZoom, ZOOM_MS);
+    zoomTimer = setTimeout(settleZoom, zoomMs);
   }
 
   function settleZoom() {
@@ -569,16 +599,20 @@
       return cam.zoom;
     },
 
-    recenter: function () {
+    // Back to following you. With { zoom, bearing } it flies there in one move: zoom, center and turn
+    // together (starting a route), instead of a pan followed by a zoom.
+    recenter: function (to) {
       follow = true;
       fitted = false;
       manualZoom = false;
       if (fix) {
         cam.lat = fix.lat;
         cam.lon = fix.lon;
-        if (rotate && heading !== null && fix.speed > 2.5) setBearing(heading);
       }
-      place('pan');
+      if (to && typeof to.bearing === 'number' && rotate) setBearing(to.bearing);
+      else if (fix && rotate && heading !== null && fix.speed > 2.5) setBearing(heading);
+      if (to && to.zoom) zoomTo(to.zoom, false, FLY_MS);
+      else place('pan');
     },
 
     resetNorth: function () {

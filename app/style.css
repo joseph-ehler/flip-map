@@ -168,6 +168,8 @@ body {
 .label.on { opacity: 1; }
 .label.place { font-size: 11.5px; color: var(--map-place); letter-spacing: 0.01em; }
 .label.place.big { font-size: 13px; font-weight: 700; letter-spacing: 0; }
+.label.pop { animation: tag-pop 0.4s var(--ease); }
+@keyframes tag-pop { 40% { scale: 1.16; } }
 .label.route-alt {
   padding: 3px 7px 4px;
   border-radius: 7px;
@@ -448,21 +450,21 @@ body {
 }
 .stat span { display: block; font-size: 10.5px; font-weight: 500; color: var(--label-2); }
 
-/* Route preview: two quiet lines. Time leads; which route is chosen shows on the map as tags. */
+/* Route preview: where you're going, then how long. Which route is chosen shows on the map as tags. */
 #preview { padding: 8px 11px 9px; }
-.p-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.p-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin-top: 1px; }
 .p-time {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 .p-time .spinner { width: 20px; height: 20px; color: var(--label-2); }
 .p-alts { flex: 0 0 auto; margin-left: auto; font-size: 12px; font-weight: 600; color: var(--label-2); white-space: nowrap; }
-.p-name { margin-top: 1px; font-size: 13px; font-weight: 600; color: var(--label-2); letter-spacing: -0.008em; }
+.p-name { font-size: 15px; font-weight: 600; color: var(--label); letter-spacing: -0.012em; }
 
 #arrived, #notice { align-items: center; gap: 10px; padding: 10px 12px; }
 #notice { display: flex; }
@@ -560,7 +562,8 @@ body {
   animation: sheet-in 0.42s var(--ease) both;
 }
 [data-sheet="search"] #search,
-[data-sheet="settings"] #settings { display: flex; }
+[data-sheet="settings"] #settings,
+[data-sheet="report"] #report { display: flex; }
 .sheet.leaving { animation: sheet-out 0.2s cubic-bezier(0.4, 0, 1, 1) both; }
 .sheet-scroll { flex: 1 1 auto; overflow-y: auto; padding-bottom: 8px; }
 .sheet-title { margin: 0; padding: 12px 0 10px; text-align: center; font-size: 15px; font-weight: 600; letter-spacing: -0.012em; }
@@ -641,6 +644,11 @@ body {
 .group li:focus .accessory,
 .group li:focus .value { color: rgba(255, 255, 255, 0.85); }
 .group li.danger { justify-content: center; color: var(--red); font-weight: 600; }
+.group.report li { min-height: 34px; font-size: 13px; }
+.group.report li + li::before { left: 10px; }
+.group.report .value { flex: 0 0 auto; max-width: 62%; text-align: right; font-variant-numeric: tabular-nums; }
+.value.good { color: var(--green); }
+.value.poor { color: var(--orange); }
 .group li.danger:focus { background: var(--red); color: #ffffff; }
 
 .switch {

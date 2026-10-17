@@ -82,6 +82,7 @@
         var sy = s0.y + nudges[n][1];
         var b = [sx - bw / 2 - GAP, sy - bh / 2 - GAP, sx + bw / 2 + GAP, sy + bh / 2 + GAP];
         if (b[0] < 0 || b[2] > v.w || b[1] < v.top || b[3] > v.h - v.bottom || overlaps(b, placed)) continue;
+        if (c.avoid && overlaps(b, c.avoid)) continue;
         box = b;
         if (n) w = v.unscreen(sx, sy);
       }
@@ -103,8 +104,10 @@
         el = shown[key] = document.createElement('div');
         layer.appendChild(el);
       }
-      if (el.className.replace(' on', '').replace(' leaving', '') !== 'label ' + k.c.kind) {
-        el.className = 'label ' + k.c.kind + (fresh ? '' : ' on');
+      if (el.className.replace(' on', '').replace(' leaving', '').replace(' pop', '') !== 'label ' + k.c.kind) {
+        // A tag that just became the chosen route pops, so switching routes is unmistakable.
+        var chosen = !fresh && k.c.kind === 'route';
+        el.className = 'label ' + k.c.kind + (fresh ? '' : ' on') + (chosen ? ' pop' : '');
       }
       if (el.textContent !== k.c.text) el.textContent = k.c.text;
       // A label whose reading direction flips turns instantly rather than spinning.

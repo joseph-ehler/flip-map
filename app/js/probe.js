@@ -213,32 +213,40 @@
         var t1 = performance.now();
         return drawAll().then(function () {
           var draw = (performance.now() - t1) / tiles.length;
-          return countFrames(world).then(function (fps) {
+          return framePacing(world).then(function (f) {
             document.body.removeChild(box);
             var ms = draw < 10 ? draw.toFixed(1) : String(Math.round(draw));
             var loaded = load < 1000 ? Math.round(load) + ' ms' : (load / 1000).toFixed(1) + ' s';
-            row('map', 'Map speed', ms + ' ms to draw a tile, ' + loaded + ' to load 9, ' + fps + ' fps while turning',
-              draw < 80 && fps >= 24);
+            row('map', 'Map speed', ms + ' ms to draw a tile, ' + loaded + ' to load 9. While turning: ' +
+              f.slow + '% of frames slow, worst ' + f.worst + ' ms', draw < 80 && f.slow < 5 && f.worst < 250);
             note('draw', ms + 'ms');
-            note('fps', fps);
+            note('slow', f.slow + '%');
+            note('worst', f.worst + 'ms');
           });
         });
       });
     });
   }
 
-  function countFrames(el) {
+  // Steadiness, not peak speed: the share of frames slower than 50 ms (a visible hitch) and the worst.
+  function framePacing(el) {
     return new Promise(function (resolve) {
       var frames = 0;
+      var slow = 0;
+      var worst = 0;
       var start = performance.now();
+      var prev = start;
       el.style.transition = 'transform 2s linear';
       requestAnimationFrame(function () { el.style.transform = 'rotate(90deg)'; });
-      (function tick() {
+      requestAnimationFrame(function tick(now) {
+        var d = now - prev;
+        prev = now;
         frames++;
-        var t = performance.now() - start;
-        if (t < 2000) requestAnimationFrame(tick);
-        else resolve(Math.round(frames / (t / 1000)));
-      })();
+        if (d > 50) slow++;
+        worst = Math.max(worst, d);
+        if (now - start < 2000) requestAnimationFrame(tick);
+        else resolve({ slow: Math.round(slow / frames * 100), worst: Math.round(worst) });
+      });
     });
   }
 

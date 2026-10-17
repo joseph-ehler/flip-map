@@ -94,7 +94,11 @@ The routing service passes along OpenStreetMap's turn lanes at each junction (le
 
 - **Turn card:** one row of arrow, distance, and street. "Then" folds in at its right edge instead of adding a row. The lane row appears only near a junction. A simple turn takes 55 px of the 320 px screen.
 - **Camera:** you sit lower on screen as a turn approaches (80% of the free space within 300 m), a little higher on long straight stretches (66–70% beyond 1.5 km), and in between otherwise, so more road ahead shows when it matters.
-- **Route preview:** two quiet lines (time, distance and arrival, then the place). Each route has a time tag on the map, and the chosen one is blue. ◀ ▶ switch routes, and "‹ 1/2 ›" shows which one is chosen.
+- **Route preview:** where you're going comes first, then the time, distance, and arrival. Each route has a time tag on the map:
+  - Tags sit on their own route, never on another route's line.
+  - The chosen route's tag is blue and pops when it changes.
+  - ◀ ▶ switch routes, and "‹ 1/2 ›" shows which one is chosen.
+- **Into driving:** Go is one camera move of 700 ms. It zooms in, centers on you, and turns to face the route's first stretch, rather than a pan and then a separate zoom.
 - **Color rule:** blue is for navigation (route, Go, Resume, the lane to use). Green means done (arrival). Red is for destructive actions and location problems.
 
 ## GPS states
@@ -107,6 +111,21 @@ The routing service passes along OpenStreetMap's turn lanes at each junction (le
 | Approximate (worse than 65 m) | Pill and a wide accuracy halo | — |
 | Signal lost (no fix for 15 s) | Gray position marker and pill | — |
 | Offline | Pill. Cached map areas still draw; search and routing say they need a connection | — |
+
+## Judged on the phone, not the desktop
+
+Peak frame rate on a Mac means nothing for the Flip. These are the measures, and where they show up:
+
+| Measure | Good | Where |
+|---|---|---|
+| Tile drawing | under 80 ms per tile | Phone check, key 5 |
+| Frame pacing while the map turns | under 5% of frames slower than 50 ms, worst under 250 ms | Phone check, key 5; Drive Report |
+| GPS rhythm | a fix at least every 2 s; longest gap under 5 s | Phone check, key 1; Drive Report |
+| Key response | under 120 ms from press to paint | Drive Report |
+| Spoken prompts | none failed; still speaking with the flip closed | Drive Report; listen |
+| Battery | per hour of driving | Drive Report (if the phone reports it) |
+
+The Drive Report (More > Drive Report) records a trip as it happens and is kept until the next one, so a passenger can read it out afterwards. It samples frame pacing for 3 seconds every 30, which keeps its own cost small.
 
 ## Needs the phone to confirm
 
