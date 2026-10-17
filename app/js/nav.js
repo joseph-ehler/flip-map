@@ -12,6 +12,9 @@
   var OFF_ROUTE_FIXES = 3;
   var RETRY_GAP_MS = 15000;
   var ARRIVE_M = 30;
+  var ROUTE_MS = 12000; // a route request with no answer by then is abandoned and retried
+  var MIN_REACH_MPS = 15; // assume at least this speed when judging how far we could have gone
+  var MAX_GAP_S = 120;
   var THEN_M = 300; // a second turn this soon after the next one gets a "Then" hint
 
   var route = null; // see build()
@@ -28,10 +31,9 @@
   function fetchRoutes(from, dest, alternatives) {
     var url = ROUTER_URL + from.lon + ',' + from.lat + ';' + dest.lon + ',' + dest.lat +
       '?overview=false&steps=true&geometries=geojson' + (alternatives ? '&alternatives=true' : '');
-    return fetch(url)
-      .then(function (res) {
-        if (!res.ok) throw new Error('Routing is unavailable');
-        return res.json();
+    return FM.net.getJSON(url, ROUTE_MS, 'Routing is not answering')
+      .catch(function (err) {
+        throw err.status ? new Error('Routing is unavailable') : err;
       })
       .then(function (data) {
         if (data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('No route found');
@@ -135,6 +137,7 @@
       steps: steps,
       said: {}, // step index -> 1 (early warning given) or 2 (turn-now given)
       lastIdx: 0,
+      trackedAt: 0, // when the last fix matched the route; 0 until the first one
       progress: 0,
       snap: null, // where you are on the line
       next: steps[steps.length - 1],
@@ -154,9 +157,25 @@
   }
 
   function track(fix) {
-    var m = match(fix.lat, fix.lon);
+    var now = Date.now();
+    var m = match(fix, now);
     var c = route.coords;
     var tolerance = OFF_ROUTE_M + Math.min(fix.accuracy || 0, 50);
+
+    // Not near any part of the route we could have reached since the last fix: count it as off the
+    // route and leave progress alone, so one stray fix can't skip turns or end the trip. If it keeps
+    // happening, the usual reroute takes over.
+    if (m.dist > tolerance) {
+      offCount++;
+      if (offCount >= OFF_ROUTE_FIXES && !busy && now - lastRequest > RETRY_GAP_MS) {
+        FM.report.reroute();
+        request(fix, route.dest, true);
+      }
+      return;
+    }
+
+    offCount = 0;
+    route.trackedAt = now;
     route.lastIdx = m.idx;
     route.progress = m.progress;
     route.snap = {
@@ -164,9 +183,8 @@
       lat: c[m.idx][0] + m.t * (c[m.idx + 1][0] - c[m.idx][0]),
       lon: c[m.idx][1] + m.t * (c[m.idx + 1][1] - c[m.idx][1])
     };
-    offCount = m.dist > tolerance ? offCount + 1 : 0;
 
-    if (route.total - m.progress < ARRIVE_M && m.dist < tolerance) {
+    if (route.total - m.progress < ARRIVE_M) {
       var dest = route.dest;
       say('You have arrived', true);
       if (FM.nav.onarrive) FM.nav.onarrive(dest);
@@ -174,22 +192,38 @@
       return;
     }
 
-    if (offCount >= OFF_ROUTE_FIXES && !busy && Date.now() - lastRequest > RETRY_GAP_MS) {
-      FM.report.reroute();
-      request(fix, route.dest, true);
-    }
-
     route.next = nextStep(m.progress);
     route.toNext = route.next.at - m.progress;
     announce(route.next, route.toNext, fix.speed);
   }
 
-  // Snap a position to the nearest point on the route line. Looks near the last match first so a
-  // road that doubles back on itself doesn't make progress jump.
-  function match(lat, lon) {
+  // Snap a position to the nearest point on the stretch of route we could plausibly have reached:
+  // a little behind where we were, up to the farthest we could have driven since (at least 15 m/s,
+  // with slack for GPS error). A jump onto a far part of the route, such as the other side of a road
+  // that doubles back, or the destination, isn't on that stretch, so it doesn't match.
+  function match(fix, now) {
     var last = route.coords.length - 2;
-    var best = scan(lat, lon, Math.max(0, route.lastIdx - 10), Math.min(last, route.lastIdx + 300));
-    return best.dist > 100 ? scan(lat, lon, 0, last) : best;
+    if (!route.trackedAt) return scan(fix.lat, fix.lon, 0, last);
+    var gap = Math.min((now - route.trackedAt) / 1000, MAX_GAP_S);
+    var slack = 60 + Math.min(fix.accuracy || 0, 100);
+    var reach = Math.max(fix.speed || 0, MIN_REACH_MPS) * gap * 1.5 + slack;
+    var from = indexAt(route.progress - slack);
+    var to = Math.min(last, indexAt(route.progress + reach) + 1);
+    return scan(fix.lat, fix.lon, from, to);
+  }
+
+  // The last route vertex at or before `d` meters along the route.
+  function indexAt(d) {
+    var cum = route.cum;
+    var lo = 0;
+    var hi = cum.length - 1;
+    if (d <= 0) return 0;
+    while (lo < hi) {
+      var mid = (lo + hi + 1) >> 1;
+      if (cum[mid] <= d) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
   }
 
   function scan(lat, lon, from, to) {

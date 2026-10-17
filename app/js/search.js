@@ -9,6 +9,7 @@
   var RECENT_KEY = 'flipmap.recent';
   var MAX_RECENT = 6;
   var MIN_GAP_MS = 1100;
+  var SEARCH_MS = 10000; // no answer by then: say so instead of spinning
 
   // Result badges: an icon and a color per kind of place.
   var KINDS = {
@@ -32,6 +33,7 @@
   var empty = $('s-empty');
   var places = [];
   var lastQuery = 0;
+  var asked = 0; // number of the latest search; older answers are ignored
   var lastChosen = 0;
 
   function open(keep) {
@@ -56,12 +58,10 @@
     var c = FM.map.center();
     var box = [c.lon - 0.5, c.lat + 0.5, c.lon + 0.5, c.lat - 0.5].join(',');
     busy(true);
-    fetch(SEARCH_URL + encodeURIComponent(q) + '&viewbox=' + box)
-      .then(function (res) {
-        if (!res.ok) throw new Error('Search failed');
-        return res.json();
-      })
+    var ask = ++asked;
+    FM.net.getJSON(SEARCH_URL + encodeURIComponent(q) + '&viewbox=' + box, SEARCH_MS, 'Search is not answering')
       .then(function (rows) {
+        if (ask !== asked) return; // a newer search has taken over
         var found = rows.map(toPlace);
         found.sort(function (a, b) { return away(a) - away(b); });
         if (found.length) {
@@ -72,11 +72,12 @@
         }
       })
       .catch(function () {
+        if (ask !== asked) return;
         show([], '', navigator.onLine === false
           ? ['You’re Offline', 'Search needs a data connection.']
           : ['Search Unavailable', 'Try again in a moment.']);
       })
-      .then(function () { busy(false); });
+      .then(function () { if (ask === asked) busy(false); });
   }
 
   function busy(on) {
