@@ -6,7 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const APP = path.join(__dirname, '..', '..', 'app', 'js');
+// FLIPMAP_APP=<folder> tests another copy of the app (e.g. main's), for comparison.
+const APP = path.join(process.env.FLIPMAP_APP ? path.resolve(process.env.FLIPMAP_APP) : path.join(__dirname, '..', '..', 'app'), 'js');
 const LAT0 = 29.65; // Gainesville
 const LON0 = -82.33;
 const M_PER_DEG_LAT = 110574;

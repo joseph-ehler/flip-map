@@ -72,8 +72,9 @@
   // Resuming a saved trip, or rerouting: no preview, just the best route from here.
   function request(from, dest, isReroute) {
     var ask = ++asked;
+    var at = Date.now(); // when we were at `from`
     busy = true;
-    lastRequest = Date.now();
+    lastRequest = at;
     notify();
     fetchRoutes(from, dest, false)
       .then(function (list) {
@@ -84,7 +85,7 @@
         offCount = 0;
         lastError = '';
         if (!isReroute) say('Resuming route. ' + route.steps[0].text, false);
-        track(from);
+        track(from, at);
         if (isReroute && route) {
           route.said[route.next.i] = 1;
           say(inDistance(route.toNext, route.next), false);
@@ -168,8 +169,10 @@
     }
   }
 
-  function track(fix) {
-    var now = Date.now();
+  // `at`: when the fix was taken, if not just now. A route that took a while to arrive is matched
+  // against where we asked from, as of then, so the next fix may plausibly be that much farther on.
+  function track(fix, at) {
+    var now = at || Date.now();
     var m = match(fix, now);
     var c = route.coords;
     var tolerance = OFF_ROUTE_M + Math.min(fix.accuracy || 0, 50);
