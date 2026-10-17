@@ -134,6 +134,7 @@ node --test tests/
 
 - **Lane guidance** has its own tests, including real Gainesville junctions saved from the routing service, since it's the one place a mistake could change how someone drives.
 - **The navigation engine and network failure paths** are tested by replaying drives through the real `nav.js` against a mock routing server: stray GPS fixes, tunnels, close turns, hanging and failing requests, and late search answers. See [research/audit-nav-engine.md](research/audit-nav-engine.md).
+- **The whole app in Firefox 123** (KaiOS 4's engine version) at 240×320 is tested in [devtools/compat](devtools/compat). This covers keys and screens, reloads, lost connections, stalled downloads, and a 100-minute drive with GPS trouble, all on recorded answers. See [research/audit-reliability.md](research/audit-reliability.md).
 
 ## Getting it onto the phone
 
