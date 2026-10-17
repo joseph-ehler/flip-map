@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "flip-map",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8417", "--directory", "app"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "http-server@14.1.1", "app", "-p", "8417", "-c-1", "-s"],
       "port": 8417
     }
   ]

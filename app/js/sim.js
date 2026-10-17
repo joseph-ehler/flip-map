@@ -1,13 +1,14 @@
-// Fake GPS for trying the app on a computer: open index.html?sim
-// Circles downtown Chicago until a route is set, then drives the route at ~30 mph.
-// Press 0 to swerve off the route and watch it reroute.
+// Fake GPS for trying the app on a computer: open index.html?sim (downtown Chicago) or
+// index.html?sim=29.652,-82.325 (anywhere). Circles there until a route is set, then drives the
+// route at ~30 mph. Press 0 to swerve off the route and watch it reroute.
 (function (FM) {
   'use strict';
 
   var geo = FM.geo;
   var SPEED = 13.4; // m/s
-  var LAT0 = 41.8827;
-  var LON0 = -87.6233;
+  var at = (location.search.match(/[?&]sim=(-?[\d.]+),(-?[\d.]+)/) || []);
+  var LAT0 = at[1] ? +at[1] : 41.8827;
+  var LON0 = at[2] ? +at[2] : -87.6233;
   var RADIUS = 400;
   var M_PER_DEG = 111320;
 

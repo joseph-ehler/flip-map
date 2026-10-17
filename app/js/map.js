@@ -1,11 +1,11 @@
-// The map: tiles, routes and your position. Everything sits on one "world" layer that a CSS transform
-// moves, turns and scales, so travel between GPS fixes, zooms and turns glides instead of jumping.
-// Knows nothing about keys, screens or navigation.
+// The map: tiles, routes, labels and your position. Everything sits on "world" layers that a CSS
+// transform moves, turns and scales, so travel between GPS fixes, zooms and turns glides instead of
+// jumping. Tiles are drawn by carto.js; labels placed by labels.js. Knows nothing about keys or screens.
 (function (FM) {
   'use strict';
 
   var geo = FM.geo;
-  // OpenStreetMap's standard tiles. style.css tones them down for light and dark appearance.
+  // Used only if the vector map can't be reached: OpenStreetMap's standard picture tiles.
   var TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   var TILE = 256;
   var MIN_ZOOM = 3;
@@ -19,8 +19,10 @@
   var ZOOM_MS = 320;
   var PAN_MS = 240;
   var EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
-  var DRIVE_FOCUS = 0.72; // while driving you sit low on screen, so more of the road ahead shows
   var FIT_PAD = 22;
+  var LABEL_DELAY_MS = 120;
+  var PUCK_CLEAR = 26; // labels keep this far from you
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
   var RAD = Math.PI / 180;
 
   var still = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -70,6 +72,10 @@
   var prevTimer = null;
   var routes = [];
   var selected = 0;
+  var theme = 'day';
+  var callout = null; // the street of the next turn, labeled on the map while driving
+  var labelTimer = null;
+  var labelHow = 'none';
 
   // --- Coordinates ---
 
@@ -92,7 +98,10 @@
     var h = mapEl.clientHeight;
     var top = insets.top;
     var bottom = h - insets.bottom;
-    return { x: w / 2, y: top + (bottom - top) * (driving && !fitted ? DRIVE_FOCUS : 0.5) };
+    // While driving you sit low on screen, lower the faster you go, so more of the road ahead shows.
+    var speed = fix && fix.speed > 0 ? fix.speed : 0;
+    var low = 0.68 + 0.1 * geo.clamp(speed / 30, 0, 1);
+    return { x: w / 2, y: top + (bottom - top) * (driving && !fitted ? low : 0.5) };
   }
 
   function toScreen(p, f, c) {
@@ -139,6 +148,48 @@
     });
     placePuck(f, c, t);
     loadTiles(f, c);
+    // Labels follow right away while the map glides, so their turn to upright keeps pace with it.
+    if (how === 'gps' || how === 'pan' || how === 'zoom') layoutLabels(t);
+    else scheduleLabels();
+  }
+
+  // --- Labels ---
+
+  function scheduleLabels() {
+    clearTimeout(labelTimer);
+    labelTimer = setTimeout(function () { layoutLabels('none'); }, LABEL_DELAY_MS);
+  }
+
+  function layoutLabels(t) {
+    clearTimeout(labelTimer);
+    if (zoomTimer) return; // positions are about to change; the settled zoom lays out again
+    var f = toWorld(cam.lat, cam.lon);
+    var c = focusPoint();
+    var ap = anchorAt();
+    var avoid = [];
+    if (fix) {
+      var s = toScreen(toWorld(fix.lat, fix.lon), f, c);
+      avoid.push([s.x - PUCK_CLEAR, s.y - PUCK_CLEAR, s.x + PUCK_CLEAR, s.y + PUCK_CLEAR]);
+    }
+    var extra = [];
+    if (callout) {
+      var cp = geo.project(callout.lat, callout.lon, 0);
+      extra.push({ kind: 'route', text: callout.text, priority: 100, minZoom: 0, x: cp.x, y: cp.y, angle: 0 });
+    }
+    FM.labels.layout({
+      zoom: cam.zoom,
+      rot: cam.rot,
+      mode: driving ? 'drive' : 'explore',
+      world: function (x, y) { return { x: x - ap.x, y: y - ap.y }; },
+      screen: function (p) { return toScreen(p, f, c); },
+      w: mapEl.clientWidth,
+      h: mapEl.clientHeight,
+      top: insets.top,
+      bottom: insets.bottom,
+      avoid: avoid,
+      extra: extra,
+      transition: t
+    });
   }
 
   function px(v) {
@@ -172,6 +223,7 @@
     tilesEl.innerHTML = '';
     prevEl.innerHTML = '';
     tiles = {};
+    FM.labels.clear();
     drawRoutes();
   }
 
@@ -229,25 +281,49 @@
     }
   }
 
+  // A canvas drawn from vector data in our own style; a picture tile only if that data is unreachable.
   function makeTile(tx, ty, n, ap) {
-    var img = document.createElement('img');
-    img.className = 'tile';
-    img.alt = '';
-    img.onload = function () {
-      img.classList.add('ready');
-      if (!tilesEl.querySelector('.tile:not(.ready)')) clearPrev();
-    };
-    img.onerror = function () {
-      img.failedAt = Date.now();
-    };
-    img.style.left = (tx * TILE - ap.x) + 'px';
-    img.style.top = (ty * TILE - ap.y) + 'px';
-    img.src = TILE_URL
-      .replace('{z}', cam.zoom)
-      .replace('{x}', ((tx % n) + n) % n)
-      .replace('{y}', ty);
-    tilesEl.appendChild(img);
-    return img;
+    var vector = FM.carto.ready();
+    var el = document.createElement(vector ? 'canvas' : 'img');
+    el.className = vector ? 'tile' : 'tile raster';
+    el.style.left = (tx * TILE - ap.x) + 'px';
+    el.style.top = (ty * TILE - ap.y) + 'px';
+    el.fmZ = cam.zoom;
+    el.fmX = ((tx % n) + n) % n;
+    el.fmY = ty;
+    tilesEl.appendChild(el);
+    if (vector) {
+      el.width = el.height = TILE * DPR;
+      paintTile(el);
+    } else {
+      el.alt = '';
+      el.onload = function () { tileReady(el); };
+      el.onerror = function () { el.failedAt = Date.now(); };
+      el.src = TILE_URL.replace('{z}', el.fmZ).replace('{x}', el.fmX).replace('{y}', el.fmY);
+    }
+    return el;
+  }
+
+  function paintTile(el) {
+    FM.carto.draw(el, el.fmZ, el.fmX, el.fmY, function (ok) {
+      if (ok) tileReady(el);
+      else el.failedAt = Date.now();
+    });
+  }
+
+  function tileReady(el) {
+    el.classList.add('ready');
+    if (!tilesEl.querySelector('.tile:not(.ready)')) clearPrev();
+    scheduleLabels(); // newly loaded data may bring labels
+  }
+
+  // Redraw every tile in place after the appearance or density changes.
+  function restyle() {
+    clearPrev();
+    Object.keys(tiles).forEach(function (k) {
+      if (tiles[k].tagName === 'CANVAS') paintTile(tiles[k]);
+    });
+    scheduleLabels();
   }
 
   function drop(key) {
@@ -299,6 +375,7 @@
     cam.zoom = z;
     cam.scale = 1;
     anchorPx = null;
+    FM.labels.clear();
     place('none');
     drawRoutes();
     saveView();
@@ -319,6 +396,11 @@
     var d = r ? pathData(r, true) : '';
     edgeEl.setAttribute('d', d);
     lineEl.setAttribute('d', d);
+
+    // The route grows with zoom like the roads do, so it always covers the road it follows.
+    var w = geo.clamp(7 * Math.pow(2, (cam.zoom - 16) * 0.5), 4, 13);
+    lineEl.style.strokeWidth = altsEl.style.strokeWidth = w.toFixed(1) + 'px';
+    edgeEl.style.strokeWidth = altsEdgeEl.style.strokeWidth = (w + 3).toFixed(1) + 'px';
     if (r) {
       var end = r.coords[r.coords.length - 1];
       var p = toWorld(end[0], end[1]);
@@ -393,9 +475,13 @@
       var first = !fix;
       fix = f;
       if (f.speed > 1 && typeof f.heading === 'number' && isFinite(f.heading)) {
-        heading = f.heading;
-        headingRot = turnTo(headingRot, f.heading);
-        if (follow && rotate && f.speed > 2.5) setBearing(f.heading);
+        // GPS course wobbles: ease toward it, and don't turn the map for a few degrees of jitter.
+        var eased = heading === null ? f.heading : heading + 0.4 * (turnTo(heading, f.heading) - heading);
+        heading = ((eased % 360) + 360) % 360;
+        headingRot = turnTo(headingRot, heading);
+        if (follow && rotate && f.speed > 2.5 && Math.abs(turnTo(cam.bearing, heading) - cam.bearing) > 4) {
+          setBearing(heading);
+        }
       }
       if (follow) {
         cam.lat = f.lat;
@@ -410,11 +496,26 @@
       puckEl.classList.toggle('stale', stale);
     },
 
+    // Driving swaps the cartography to its sparser density as well as moving you low on screen.
     setDriving: function (on) {
       if (on === driving) return;
       driving = on;
       mapEl.classList.toggle('driving', on);
+      if (FM.carto.setStyle(theme, on ? 'drive' : 'explore')) restyle();
       place('pan');
+    },
+
+    setTheme: function (t) {
+      theme = t === 'dark' ? 'night' : 'day';
+      if (FM.carto.setStyle(theme, driving ? 'drive' : 'explore')) restyle();
+    },
+
+    // { lat, lon, text } for the street of the next turn, or null.
+    setCallout: function (c) {
+      var same = c && callout && c.text === callout.text && c.lat === callout.lat;
+      if (same || (!c && !callout)) return;
+      callout = c;
+      scheduleLabels();
     },
 
     setRotate: function (on) {
@@ -526,6 +627,14 @@
     metersPerPixel: function () {
       return geo.metersPerPixel(cam.lat, cam.zoom);
     }
+  };
+
+  // The vector map's address arrives after startup the very first time; swap the picture tiles out.
+  FM.carto.onready = function () {
+    tilesEl.innerHTML = '';
+    clearPrev();
+    tiles = {};
+    place('none');
   };
 
   window.addEventListener('resize', FM.map.render);

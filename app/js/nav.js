@@ -111,6 +111,7 @@
         startIdx: startIdx,
         text: instruction(s), // spoken
         road: label(s, dest), // shown under the distance
+        street: roadName(s), // the real name, if the road has one
         major: isMajor(s.maneuver)
       };
     });
@@ -119,7 +120,10 @@
     for (var k = 1; k < coords.length; k++) {
       cum.push(cum[k - 1] + geo.distance(coords[k - 1][0], coords[k - 1][1], coords[k][0], coords[k][1]));
     }
-    steps.forEach(function (s) { s.at = cum[s.startIdx]; });
+    steps.forEach(function (s) {
+      s.at = cum[s.startIdx];
+      s.loc = coords[s.startIdx];
+    });
 
     return {
       dest: dest,

@@ -27,6 +27,7 @@
         <path id="route-line" vector-effect="non-scaling-stroke"/>
         <circle id="route-dest" r="6.5" vector-effect="non-scaling-stroke"/>
       </svg>
+      <div id="labels"></div>
     </div>
     <div id="halo" hidden></div>
     <div id="puck" hidden>
@@ -69,9 +70,8 @@
 
   <div id="bottom">
     <div class="hud">
-      <div id="speed" hidden><b id="speed-val"></b><span>mph</span></div>
       <div id="scale" hidden><span id="scale-text"></span><i id="scale-bar"></i></div>
-      <span id="attribution">© OpenStreetMap</span>
+      <span id="attribution">OpenFreeMap © OpenMapTiles © OpenStreetMap</span>
     </div>
 
     <section id="trip" class="card">
@@ -84,6 +84,14 @@
       <div id="p-name" class="card-title clip"></div>
       <div class="p-line"><span id="p-time" class="p-time"></span><span id="p-meta" class="card-sub clip"></span></div>
       <div id="p-alts" class="p-alts" hidden></div>
+    </section>
+
+    <section id="notice" class="card" hidden>
+      <span class="notice-mark"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path class="i-s" d="M20.5 3.5L3.5 10.8l7.2 2.5 2.5 7.2zM3 3l18 18"/></svg></span>
+      <div class="notice-text">
+        <div id="notice-title" class="card-title"></div>
+        <div id="notice-body" class="card-sub"></div>
+      </div>
     </section>
 
     <section id="arrived" class="card">
@@ -122,6 +130,9 @@
 
   <script src="js/geo.js"></script>
   <script src="js/icons.js"></script>
+  <script src="js/mvt.js"></script>
+  <script src="js/carto.js"></script>
+  <script src="js/labels.js"></script>
   <script src="js/map.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/search.js"></script>

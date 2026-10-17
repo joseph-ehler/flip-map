@@ -131,6 +131,20 @@
     return p.value + ' ' + p.unit;
   }
 
+  // "North Lake Shore Drive" -> "N Lake Shore Dr": street names as they appear on signs.
+  var SHORT = [
+    ['North', 'N'], ['South', 'S'], ['East', 'E'], ['West', 'W'],
+    ['Northeast', 'NE'], ['Northwest', 'NW'], ['Southeast', 'SE'], ['Southwest', 'SW'],
+    ['Street', 'St'], ['Avenue', 'Ave'], ['Boulevard', 'Blvd'], ['Drive', 'Dr'], ['Road', 'Rd'],
+    ['Lane', 'Ln'], ['Court', 'Ct'], ['Place', 'Pl'], ['Parkway', 'Pkwy'], ['Highway', 'Hwy'],
+    ['Expressway', 'Expy'], ['Terrace', 'Ter'], ['Circle', 'Cir'], ['Trail', 'Trl'], ['Square', 'Sq']
+  ].map(function (p) { return [new RegExp('\\b' + p[0] + '\\b', 'g'), p[1]]; });
+
+  function shortRoad(name) {
+    if (!name || name.indexOf(' ') < 0) return name;
+    return SHORT.reduce(function (s, p) { return s.replace(p[0], p[1]); }, name);
+  }
+
   // The longest round distance (50 ft, 500 ft, 1 mi, ...) whose bar fits in maxPx.
   function niceScale(mpp, maxPx) {
     var ft = maxPx * mpp * FT_PER_M;
@@ -163,6 +177,7 @@
     spokenDistance: spokenDistance,
     durationParts: durationParts,
     formatDuration: formatDuration,
-    niceScale: niceScale
+    niceScale: niceScale,
+    shortRoad: shortRoad
   };
 })(window.FM = window.FM || {});

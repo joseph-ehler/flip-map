@@ -22,7 +22,8 @@
   var FLASH_MS = 2400;
   var SCALE_MS = 1600;
   var SHEET_OUT_MS = 200;
-  var MPS_TO_MPH = 2.23694;
+  var ROUGH_M = 65; // worse than this, say the position is approximate
+  var SLOW_FIX_MS = 20000;
   var PREFS_KEY = 'flipmap.prefs';
   var APPEARANCES = ['auto', 'light', 'dark'];
   var APPEARANCE_NAMES = { auto: 'Automatic', light: 'Light', dark: 'Dark' };
@@ -39,6 +40,8 @@
   var sheet = null;
   var fix = null;
   var gpsError = 0;
+  var gpsStartedAt = Date.now();
+  var watchId = null;
   var trip = emptyTrip(); // the preview: destination and route choices
   var shownRoute = null;
   var flash = null; // a short message in the status pill
@@ -129,7 +132,7 @@
       var el = $(id);
       if (el.offsetHeight) top = Math.max(top, topOf(el) + el.offsetHeight);
     });
-    ['trip', 'preview', 'arrived'].forEach(function (id) {
+    ['trip', 'preview', 'arrived', 'notice'].forEach(function (id) {
       var el = $(id);
       if (el.offsetHeight) bottom = Math.max(bottom, h - topOf(el));
     });
@@ -141,6 +144,7 @@
   function stateKeys() {
     switch (state) {
       case 'explore':
+        if (!fix && gpsError) return ['Search', 'Retry', 'More'];
         if (!fix || !map.following()) return ['Search', icons.icon('locateOutline'), 'More', 'sym'];
         if (isRotated()) return ['Search', icons.icon('compass'), 'More', 'sym'];
         return ['Search', icons.icon('locate'), 'More', 'sym on'];
@@ -166,10 +170,11 @@
     if ($('sk-center').className !== cls) $('sk-center').className = cls;
   }
 
-  // --- Turn card, trip bar, speed ---
+  // --- Turn card, trip bar, the next street on the map ---
 
   function renderNav() {
     var s = nav.state();
+    var callout = null;
     if (s.mode === 'pending') {
       setHTML('glyph', s.error ? icons.maneuver('arrive') : icons.spinner);
       setText('b-dist', s.error || 'Finding Route');
@@ -185,8 +190,11 @@
         setHTML('glyph', icons.maneuver(step.type, step.modifier));
         setText('b-dist', s.toNext < 20 ? 'Now' : geo.formatDistance(s.toNext));
       }
-      setText('b-road', step.road);
+      setText('b-road', step.type === 'arrive' ? step.road : geo.shortRoad(step.road));
       show('then', !!s.then && !s.rerouting);
+      if (state === 'nav' && !s.rerouting && step.street && step.type !== 'arrive') {
+        callout = { lat: step.loc[0], lon: step.loc[1], text: geo.shortRoad(step.street) };
+      }
       if (s.then) setHTML('then-glyph', icons.maneuver(s.then.type, s.then.modifier));
 
       var t = geo.durationParts(s.secs);
@@ -199,9 +207,7 @@
 
       if (state === 'nav') map.autoZoom(zoomFor(fix ? fix.speed : 0, s.toNext));
     }
-    var mph = fix && fix.speed > 0.5 ? Math.round(fix.speed * MPS_TO_MPH) : null;
-    show('speed', mph !== null);
-    if (mph !== null) setText('speed-val', String(mph));
+    map.setCallout(callout);
     layout();
   }
 
@@ -362,21 +368,42 @@
     timers.flash = setTimeout(renderStatus, (ms || FLASH_MS) + 50);
   }
 
+  // Where location stands, honestly: each case says what's wrong and, where it can, what to do.
+  function gpsState() {
+    if (gpsError === 1) return 'denied';
+    if (!fix) return gpsError ? 'unavailable' : 'searching';
+    if (Date.now() - fix.time > STALE_MS) return 'lost';
+    if (fix.accuracy > ROUGH_M) return 'rough';
+    return 'good';
+  }
+
   function renderStatus() {
+    var g = gpsState();
     var p = null;
     if (flash && Date.now() < flash.until) p = flash;
-    else if (gpsError === 1) p = { text: 'Location Is Off', tone: 'bad' };
-    else if (!fix) p = { text: 'Locating', tone: 'locating' };
-    else if (Date.now() - fix.time > STALE_MS) p = { text: 'Weak GPS Signal', tone: 'warn' };
+    else if (g === 'searching') {
+      p = { text: Date.now() - gpsStartedAt > SLOW_FIX_MS ? 'Still Looking — Try Outside' : 'Finding Your Location', tone: 'locating' };
+    } else if (g === 'unavailable') p = { text: 'Location Unavailable', tone: 'warn' };
+    else if (g === 'lost') p = { text: 'GPS Signal Lost', tone: 'warn' };
+    else if (g === 'rough') p = { text: 'Approximate Location', tone: 'warn' };
     else if (navigator.onLine === false) p = { text: 'Offline', tone: 'muted' };
     var pill = $('pill');
-    if (!p) {
-      show('pill', false);
-      return;
+    if (p) {
+      setText('pill-text', p.text);
+      if (pill.className !== p.tone) pill.className = p.tone;
     }
-    setText('pill-text', p.text);
-    if (pill.className !== p.tone) pill.className = p.tone;
-    show('pill', true);
+    show('pill', !!p);
+
+    // Location switched off gets a card with the way back, not a passing pill.
+    var denied = g === 'denied' && (state === 'explore' || state === 'preview');
+    if (denied) {
+      setText('notice-title', 'Location Is Off');
+      setText('notice-body', 'Allow location for this page in the browser, then press OK.');
+    }
+    if ($('notice').hidden === denied) {
+      show('notice', denied);
+      layout();
+    }
   }
 
   function isRotated() {
@@ -528,6 +555,7 @@
       var c = map.center();
       theme = geo.sunAltitude(new Date(), c.lat, c.lon) > -4 ? 'light' : 'dark';
     }
+    map.setTheme(theme);
     if (root.getAttribute('data-theme') === theme) return;
     root.setAttribute('data-theme', theme);
     var meta = document.querySelector('meta[name="theme-color"]');
@@ -566,7 +594,8 @@
           openSettings();
           return true;
         case 'Enter': case '5':
-          if (!map.following()) map.recenter();
+          if (!fix && gpsError) watchGps();
+          else if (!map.following()) map.recenter();
           else if (isRotated()) map.resetNorth();
           return true;
         case '0':
@@ -691,20 +720,30 @@
   function onError(err) {
     gpsError = err.code;
     renderStatus();
+    refreshKeys();
+  }
+
+  // Also the Retry action: asking again re-prompts for permission where the browser allows it.
+  function watchGps() {
+    if (!navigator.geolocation) {
+      gpsError = 2;
+      return;
+    }
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    gpsError = 0;
+    gpsStartedAt = Date.now();
+    watchId = navigator.geolocation.watchPosition(onFix, onError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 30000
+    });
+    renderStatus();
+    refreshKeys();
   }
 
   function startGps() {
-    if (sim.enabled) {
-      sim.start(onFix);
-    } else if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(onFix, onError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 30000
-      });
-    } else {
-      gpsError = 2;
-    }
+    if (sim.enabled) sim.start(onFix);
+    else watchGps();
     setInterval(function () {
       if (fix) map.setStale(Date.now() - fix.time > STALE_MS);
       renderStatus();

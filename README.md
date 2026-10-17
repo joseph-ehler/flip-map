@@ -57,10 +57,10 @@ Do these in order. Each one answers a question the computer can't.
 ## Try it on the computer
 
 ```bash
-python3 -m http.server 8417 --directory app
+npx http-server app -p 8417 -c-1
 ```
 
-Open `http://localhost:8417/index.html?sim`. `?sim` fakes a drive around downtown Chicago: search for a place there (e.g. "willis tower") and it drives the route at 30 mph. Press 0 to swerve off the route and watch it reroute.
+Open `http://localhost:8417/index.html?sim`. `?sim` fakes a drive around downtown Chicago. `?sim=29.652,-82.325` starts anywhere else (that one is downtown Gainesville). Search for a nearby place and it drives the route at 30 mph. Press 0 to swerve off the route and watch it reroute. `-c-1` turns off caching so edits show up on reload.
 
 ## Getting it onto the phone
 
@@ -96,18 +96,23 @@ All three are free community servers. Light personal use is within their rules. 
 
 | What | Service | Rule that matters |
 |---|---|---|
-| Map tiles | tile.openstreetmap.org | Show attribution. Bulk-downloading areas is not allowed, so tiles are only saved as you view them |
+| Map data | tiles.openfreemap.org (vector, drawn on the phone) | Free and no key. Show attribution. Tiles are saved as you view them |
+| Fallback map pictures | tile.openstreetmap.org | Used only if the vector data can't be reached. Show attribution, no bulk downloading |
 | Place search | nominatim.openstreetmap.org | At most one search per second, no search-as-you-type |
 | Driving routes | router.project-osrm.org | Car only, demo server, no guarantees |
 
-To switch providers, change the constant at the top of [map.js](app/js/map.js), [search.js](app/js/search.js), or [nav.js](app/js/nav.js).
+To switch providers, change the constant at the top of [carto.js](app/js/carto.js), [search.js](app/js/search.js), or [nav.js](app/js/nav.js).
 
 ## Files
 
 | File | Job |
 |---|---|
 | [js/geo.js](app/js/geo.js) | Map math, distances, miles/feet formatting |
-| [js/map.js](app/js/map.js) | Draws tiles, route line, your dot |
+| [js/map.js](app/js/map.js) | Camera and motion: tiles, route line, your position |
+| [js/mvt.js](app/js/mvt.js) | Decodes vector map tiles |
+| [js/carto.js](app/js/carto.js) | Flip Cartography: draws the map in our day/night, explore/drive styles |
+| [js/labels.js](app/js/labels.js) | Places upright street and place names without overlaps |
+| [js/icons.js](app/js/icons.js) | Turn arrows and interface icons |
 | [js/nav.js](app/js/nav.js) | Gets routes, tracks progress, speaks turns, reroutes |
 | [js/search.js](app/js/search.js) | Search screen and recent places |
 | [js/app.js](app/js/app.js) | Keys, soft keys, status bar, turn banner, options menu, GPS |
