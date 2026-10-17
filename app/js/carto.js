@@ -8,6 +8,7 @@
   var SOURCE_KEY = 'flipmap.vector';
   var SOURCE_MAX_Z = 14; // data stops at z14; closer zooms magnify it
   var MAX_SOURCES = 14; // decoded tiles kept in memory
+  var DATA_MS = 15000; // map data with no answer by then is abandoned, so it can be tried again
   var TILE = 256;
   var DPR = Math.min(window.devicePixelRatio || 1, 2);
   var WANTED = {
@@ -66,8 +67,7 @@
   }
 
   function refreshTemplate() {
-    fetch(TILEJSON_URL)
-      .then(function (res) { return res.json(); })
+    FM.net.getJSON(TILEJSON_URL, DATA_MS)
       .then(function (j) {
         var url = j.tiles && j.tiles[0];
         if (!url || url === template) return;
@@ -88,11 +88,7 @@
     var s = sources[key];
     if (!s) {
       s = sources[key] = { key: key, z: z, x: x, y: y, data: null, labels: null, failed: false, waiting: [] };
-      fetch(template.replace('{z}', z).replace('{x}', x).replace('{y}', y))
-        .then(function (res) {
-          if (!res.ok) throw new Error('tile ' + res.status);
-          return res.arrayBuffer();
-        })
+      FM.net.getBytes(template.replace('{z}', z).replace('{x}', x).replace('{y}', y), DATA_MS)
         .then(function (buf) {
           s.data = FM.mvt.decode(buf, WANTED);
           s.labels = collectLabels(s);

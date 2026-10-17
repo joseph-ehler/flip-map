@@ -392,6 +392,7 @@
 
   function endRoute() {
     closeSheet();
+    if (!nav.active()) return; // it ended on its own (arrived) while Settings was open
     FM.report.stop();
     nav.end();
     flashPill('Route Ended');
@@ -766,9 +767,18 @@
     return twin ? null : 'Enter';
   }
 
+  // A held key sends its keydown again and again. Moving the map, moving through a list and typing
+  // should keep going; actions (OK, the soft keys, Back) happen once per press.
+  var REPEATS = { ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, 1: 1, 2: 1, 3: 1, 4: 1, 6: 1, 8: 1, '-': 1, '=': 1, '+': 1 };
+
+  function typing(k) {
+    var el = document.activeElement;
+    return sheet === 'search' && el && el.id === 'q' && (k.length === 1 || (k === 'Backspace' && el.value));
+  }
+
   document.addEventListener('keydown', function (e) {
     var k = keyOf(e);
-    if (k === null) {
+    if (k === null || (e.repeat && !REPEATS[k] && !typing(k))) {
       e.preventDefault();
       return;
     }
@@ -928,6 +938,7 @@
   applyTheme();
   setInterval(applyTheme, 60000);
   map.setRotate(prefs.rotate);
+  if (!nav.active()) FM.report.abandon();
   setState(nav.active() ? 'nav' : 'explore');
   startGps();
   keepScreenOn();

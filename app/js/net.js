@@ -3,9 +3,10 @@
 (function (FM) {
   'use strict';
 
-  // Resolves with the parsed JSON. Rejects with `slowMessage` after `ms`, with an error carrying
-  // `status` for an HTTP error, or with the browser's TypeError when there's no connection.
-  function getJSON(url, ms, slowMessage) {
+  // Resolves with read(response): the parsed JSON, or the bytes. Rejects with `slowMessage` after `ms`,
+  // with an error carrying `status` for an HTTP error, or with the browser's TypeError when there's no
+  // connection.
+  function get(url, ms, slowMessage, read) {
     var ctl = typeof AbortController === 'function' ? new AbortController() : null;
     var timer = null;
     var limit = new Promise(function (resolve, reject) {
@@ -20,7 +21,7 @@
         e.status = res.status;
         throw e;
       }
-      return res.json();
+      return read(res);
     });
     return Promise.race([request, limit]).then(function (value) {
       clearTimeout(timer);
@@ -31,5 +32,13 @@
     });
   }
 
-  FM.net = { getJSON: getJSON };
+  function getJSON(url, ms, slowMessage) {
+    return get(url, ms, slowMessage, function (res) { return res.json(); });
+  }
+
+  function getBytes(url, ms, slowMessage) {
+    return get(url, ms, slowMessage, function (res) { return res.arrayBuffer(); });
+  }
+
+  FM.net = { getJSON: getJSON, getBytes: getBytes };
 })(window.FM = window.FM || {});

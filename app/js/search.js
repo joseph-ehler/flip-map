@@ -66,7 +66,8 @@
         found.sort(function (a, b) { return away(a) - away(b); });
         if (found.length) {
           show(found, 'Results');
-          focusItem(0);
+          // Ready to pick with OK, unless you've started typing something else meanwhile.
+          if (document.activeElement !== input || input.value.trim() === q) focusItem(0);
         } else {
           show([], '', ['No Results', 'Try another spelling, or add a city.']);
         }

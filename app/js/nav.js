@@ -21,6 +21,7 @@
   var pending = loadDest(); // a saved trip waiting for a GPS fix or a network retry
   var lastFix = null;
   var busy = false;
+  var asked = 0; // number of the latest route request; a newer request or trip makes older ones moot
   var lastRequest = 0;
   var lastError = '';
   var offCount = 0;
@@ -56,6 +57,7 @@
   }
 
   function start(r) {
+    forget();
     route = r;
     pending = null;
     offCount = 0;
@@ -69,13 +71,14 @@
 
   // Resuming a saved trip, or rerouting: no preview, just the best route from here.
   function request(from, dest, isReroute) {
+    var ask = ++asked;
     busy = true;
     lastRequest = Date.now();
     notify();
     fetchRoutes(from, dest, false)
       .then(function (list) {
         // The trip may have been ended or changed while we waited.
-        if (dest !== (route ? route.dest : pending)) return;
+        if (ask !== asked || dest !== (route ? route.dest : pending)) return;
         route = list[0];
         pending = null;
         offCount = 0;
@@ -88,13 +91,22 @@
         }
       })
       .catch(function (err) {
+        if (ask !== asked) return;
         lastError = explain(err);
         message(lastError);
       })
       .then(function () {
+        if (ask !== asked) return;
         busy = false;
         notify();
       });
+  }
+
+  // A request still out belongs to the trip it was made for: starting or ending a trip lets it go, so
+  // its answer, error or spinner can't reach the next one.
+  function forget() {
+    asked++;
+    busy = false;
   }
 
   // OSRM gives a list of steps, each with its own piece of road. Stitch the pieces into one line and
@@ -280,6 +292,7 @@
   }
 
   function end() {
+    forget();
     route = null;
     pending = null;
     offCount = 0;

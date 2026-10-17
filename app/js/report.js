@@ -50,6 +50,17 @@
     return !!(r && !r.ended);
   }
 
+  // The app opened with no trip to resume (it ended while closed, or is too old to pick up): the trip
+  // stopped when its last fix arrived.
+  function abandon() {
+    if (!active()) return;
+    clearInterval(timer);
+    r.ended = r.lastFixAt || r.started;
+    if (r.hiddenSince) r.hiddenMs += Math.max(0, r.ended - r.hiddenSince);
+    r.hiddenSince = 0;
+    save();
+  }
+
   function fix(f) {
     if (!active()) return;
     var now = Date.now();
@@ -59,6 +70,7 @@
       r.gapMax = Math.max(r.gapMax, gap);
     }
     lastFixAt = now;
+    r.lastFixAt = now;
     r.fixes++;
     r.accSum += f.accuracy || 0;
     r.accMax = Math.max(r.accMax || 0, f.accuracy || 0);
@@ -206,9 +218,13 @@
     } catch (e) {}
   }
 
+  // Reopened mid-trip (a reload, or back from the phone check): keep sampling frames.
+  if (active()) timer = setInterval(sample, SAMPLE_EVERY_MS);
+
   FM.report = {
     start: start,
     stop: stop,
+    abandon: abandon,
     fix: fix,
     key: key,
     spoke: spoke,
