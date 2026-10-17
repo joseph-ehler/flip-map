@@ -44,19 +44,34 @@ The digit keys duplicate the soft keys and D-pad because the regular KaiOS brows
 
 ## Monday checklist
 
-Do these in order. Each one answers a question the computer can't.
+No code changes until this is done. Each step answers a question the computer can't. Note anything that feels awkward on the keypad as you go.
 
 1. **Phone check.** On the phone's browser, open `joseph-ehler.github.io/flip-map/probe.html` and allow location. Wait 15 seconds while it times GPS updates. Press every key once. Then press 2 for voice, 3 for vibrate, 4 for sound, and 5 for map speed (it draws real map tiles and turns them). While the sound plays, close the flip and listen for whether it keeps beeping. **Write down the blue summary line** and send it back. It covers:
    - GPS accuracy, time to first fix, and how often fixes arrive
    - how fast the map draws and how smoothly it turns
-   - whether there's a speech voice
+   - whether there's an English speech voice
    - which keys reach a web page
    - whether the screen can be kept on
    - whether Apple Music full songs are even possible (needs Widevine DRM)
-2. **Map, standing still.** Open the map outside and wait for the blue dot. Check that it's where you are.
-3. **Keys.** If the D-pad moves a mouse cursor instead of panning, use 2/4/6/8. Then look in the browser's menu for **Pin to Apps Menu**: a pinned app may get the D-pad.
-4. **A short, familiar drive with a route.** Have a passenger hold the phone, or mount it. Do the turn prompts come early enough? Does lane advice (where it appears) come early enough to change lanes calmly? Is a reroute easy to understand? Does the screen stay on? Does the dot keep up? Is it readable in sunlight? Can you read it at a glance? Close the flip for part of the drive: does the voice keep going?
-5. **Afterwards:** open More > Drive Report and read out the numbers. The "Screen off" section says whether GPS and the voice kept working with the flip closed. If the map stuttered, turn on More > Reduce Motion and note whether it helps.
+2. **Phone identity.** Settings > Device > Device Info: write down the model (T440W?) and software version. Device-specific findings (developer mode, rooting notes) depend on the exact build.
+3. **Map, standing still.** Open the map outside and wait for the blue dot. Check that it's where you are.
+4. **Keys.** If the D-pad moves a mouse cursor instead of panning, use 2/4/6/8. Then look in the browser's menu for **Pin to Apps Menu**: a pinned app may get the D-pad.
+5. **A short, familiar drive with a route.** Have a passenger hold the phone, or mount it. Four questions matter most:
+   - **Right road:** does the dot follow the road you're actually on?
+   - **Voice:** are the prompts delivered reliably, and early enough? (The passenger confirms they were heard. The phone can only say it played them.)
+   - **Missed turn:** miss one on purpose. Is the reroute quick and understandable?
+   - **Glanceable:** can you read the next step without a long look? In sunlight?
+
+   Also: does lane advice (where it appears) come early enough to change lanes calmly, and does it match the paint on the road?
+6. **Flip closed, with a turn coming.** Partway through, close the flip about half a mile before a turn, so a prompt is due while it's closed. A long straight stretch proves nothing: no prompt would be due anyway. Did the turn prompt play? Open it after the turn: did the map catch up?
+7. **Interruptions.** Have someone call you mid-route, then hang up. Does navigation come back? Let the screen time out once. Does it resume on the right step?
+8. **Afterwards:** open More > Drive Report and read out every line.
+   - "Screen off" shows whether GPS fixes arrived and prompts finished while the flip was closed. Zero of both, *with a turn due*, strongly suggests the browser suspends the page. That is a limit of the browser tab, not necessarily of an installed KaiOS app.
+   - If the map stuttered, turn on More > Reduce Motion, drive a little more, and note whether it helps.
+
+What the results decide: the next round goes to whichever of these failed first. That's background running (packaging as an installed KaiOS app), performance, navigation accuracy, or keypad interaction.
+
+Optional, if you're curious: dial `*#*333284#*#*` to turn on developer mode, install the Android tools on the Mac (`brew install android-platform-tools`), connect by USB, and run `adb devices`. If the phone is listed, installing Flip Map as a real app becomes possible to try. If not, the KaiStore test-device route is the next option.
 
 ## Try it on the computer
 
