@@ -39,7 +39,9 @@ It tests `main` at `614c798` (the live build) and the `audit/nav-engine` fixes. 
 
 The 8 failures come from 7 root causes, listed below. The same tests fail on `audit/nav-engine`: none of its fixes cover these.
 
-A review of where the two audits' fixes meet found one more defect: `audit/nav-engine` turns a slow route answer into extra reroutes. It's fixed here; see [Where the two audits meet](#where-the-two-audits-meet).
+A review of where the two audits' fixes meet found two more defects. Both are fixed here; see [Where the two audits meet](#where-the-two-audits-meet):
+- `audit/nav-engine` turns a slow route answer into extra reroutes.
+- After a slow answer, `main` and both branches speak about turns already passed.
 
 The [compatibility check](../devtools/compat/check.spec.js) against the live services still passes with the fixes (5 of 5), including the phone check's map-speed test.
 
@@ -59,7 +61,7 @@ The [compatibility check](../devtools/compat/check.spec.js) against the live ser
 ### The fixes (branch only, not merged)
 
 - **Route requests belong to their trip** (`nav.js`): each request is numbered. Starting or ending a trip lets any request still out go, so its answer, error or spinner can't reach the next trip.
-- **A slow route answer is matched as of when it was asked** (`nav.js`): see [Where the two audits meet](#where-the-two-audits-meet).
+- **A slow route answer is matched as of when it was asked, and spoken about only once you're placed on it** (`nav.js`): see [Where the two audits meet](#where-the-two-audits-meet).
 - **Map data has a time limit** (`carto.js`, `net.js`):
   - Tiles and the map's data address now give up after 15 s, through the same helper routing and search use (`FM.net.getBytes`, `FM.net.getJSON`).
   - A tile that gives up is retried by the existing rules.
@@ -69,13 +71,17 @@ The [compatibility check](../devtools/compat/check.spec.js) against the live ser
 - **Drive Report** (`report.js`, `app.js`): the frame sampler restarts when the app reopens mid-trip. Opening with no trip to resume closes the report at its last fix.
 - **End Route** (`app.js`): does nothing once the trip has already ended.
 
-The Node tests from the first audit still pass with these changes. With the interaction tests below, that's 43 pass, plus 1 recorded as a todo.
+The Node tests from the first audit still pass with these changes. With the interaction tests below, that's 46 pass, plus 1 recorded as a todo.
 
 ### Behavior changes to review before merging
 
 - **Holding a key:** if the Flip 4 repeats held keys, holding OK now does one thing. Holding an arrow still keeps moving, and holding Backspace in the search field still deletes.
 - **A slow map tile is abandoned after 15 s and asked for again,** instead of waiting as long as the browser lets it.
 - **Search:** if you change the search text before the answer comes back, the results still appear, but the cursor stays in the field.
+- **After a reroute or resume:**
+  - The first prompt is about the next turn ahead of where you are now.
+  - If that turn is already due, you hear "turn now" only, without "In 100 feet…" as well.
+  - A resumed trip you've moved along since opening the app starts with "Resuming route. In …".
 
 ## Checked, holds (no change needed)
 
@@ -109,21 +115,35 @@ Before merging, I reviewed where the two audits' fixes interact: request time li
 | Arriving while a reroute loads; its answer comes after | Pass | Pass | Pass |
 | Starting a new trip while a saved trip resumes | **Fail:** "Rerouting" on the new trip | **Fail:** same | Pass |
 | A reroute answered just before you reach the destination | Pass | Pass | Pass |
+| A reroute takes 10 s while you drive past its first turn | **Fail:** "turn now" and "In 500 feet" for the turn behind you | **Fail:** same | Pass |
+| A reroute lands 4 s in, just before its first turn | **Fail:** "turn now" said twice | **Fail:** same | Pass |
+| A saved trip takes 10 s to resume while you drive past its first turn | **Fail:** "turn now" for the turn behind you | **Fail:** same | Pass |
 
-`main`'s three failures are defects the audits already fixed. The new finding is the first two rows, an interaction defect in `audit/nav-engine`:
+Two findings came out of this:
+
+**1. Slow answers bring extra reroutes** (rows 1 and 2): an interaction defect in `audit/nav-engine`. `main`'s failures in rows 3, 4 and 6 are defects the audits already fixed.
 
 - **What happens:** a route answer that arrives after a few seconds is matched at the position it was asked from, but timed as if it were taken when the answer arrived. Plausible matching then measures how far you could have driven from the wrong moment. The next fixes, already a few hundred meters on, look implausible and count as off the route.
 - **What follows:** at highway speed, an answer taking 7 s or more brings a needless reroute. Its answer is just as slow, so it repeats. Guidance stands still meanwhile.
 - **How likely:** OSRM usually answers in under 2 s, but slower answers happen on a weak signal. That's exactly when a phone is resuming a trip or rerouting. `main` doesn't have this, because it matches against the whole route.
 - **Fix (`nav.js`, this branch):** a route answer is matched as of when it was asked for, so the plausible window grows by the time the answer took. The stray-fix protection still holds: row 4 passes.
 
+**2. Prompts for turns already passed** (rows 8 to 10): a defect in `main` from the start, which the audits didn't change.
+- **What happens:** when a route answer arrives, the app speaks about the new route from the position it was asked from, before placing you on it.
+  - **A 10 s reroute at 30 m/s:** you've driven 300 m, past the first turn. The app says "Turn left onto Street 2", with the buzz, then "In 500 feet, turn left onto Street 2", both for the turn behind you.
+  - **A shorter wait** that lands just before the turn: "turn now" is said twice.
+  - **A slow resume of a saved trip:** it announces the passed turn too.
+- **Fix (`nav.js`, this branch):** an answer is matched quietly, where it was asked from as of then and then where you are now, and only then does the app speak (`introduce()`).
+  - **The usual case:** a fast answer, or one that lands with the next turn still ahead, sounds the same as before.
+  - **A turn already passed** isn't mentioned.
+  - **A turn that's due right away** gets one "turn now".
+  - **A resumed trip** you've already moved along says "Resuming route" with the next turn, instead of "Head north…" for a stretch you've left.
+
 **Checked by reading, and holding:**
 - **OK key:** the duplicate-OK filter runs before the held-key filter, so a held `MicrophoneToggle` acts once.
 - **Search:** the result-focus rule only ever sees the latest search's answer.
 - **Time limits:** map data and routing use the same time-limit helper, with separate timers.
 - **Drive Report:** a trip still waiting to resume counts as a trip, so reopening mid-trip keeps its report.
-
-**Noted, not changed:** after a slow reroute, the first spoken distance ("In half a mile…") is measured from where the reroute was asked. It's off by the distance driven while waiting, and the banner corrects itself on the next fix. `main` does the same.
 
 ## Long drive
 
@@ -166,7 +186,7 @@ Before merging, I reviewed where the two audits' fixes interact: request time li
 
 \* The Chromium run also counted the sheets' contents. Its count rose once, by about 60, when Settings was first built at 41 minutes, and stayed there.
 
-After the slow-answer fix ([Where the two audits meet](#where-the-two-audits-meet)), the drive was run again at 16× with the same results: arrived once, 3 reroutes, 47 prompts, no errors, nothing growing.
+After the slow-answer fixes ([Where the two audits meet](#where-the-two-audits-meet)), the drive was run again at 16× with the same results: arrived once, 3 reroutes, 47 prompts, no errors, nothing growing.
 
 `main` in Firefox drove the same way: arrived once, 3 reroutes, 47 prompts, flat listeners and timers, 0.9–1.9 ms per fix. The long drive doesn't trip over the defects above, because nothing in it hangs or reloads.
 
